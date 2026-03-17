@@ -24,7 +24,16 @@ const emptyPerson = (): PersonInfo => ({
 
 export const ApplicantForm = () => {
   const [open, setOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setIsClosing(false);
+    }, 150);
+  };
 
   const initialForm: FormState = {
     caseNumber: '',
@@ -77,13 +86,13 @@ export const ApplicantForm = () => {
     alert('Анкета сохранена!');
     console.log(form);
     resetForm();
-    setOpen(false);
+    handleClose();
   };
 
   useEffect(() => {
     if (!open) return;
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') handleClose();
     };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
@@ -107,23 +116,22 @@ export const ApplicantForm = () => {
         createPortal(
           <div
             className="fixed inset-0 z-[9999] flex items-center justify-center"
-            onClick={() => setOpen(false)}
+            onClick={handleClose}
           >
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <div
               ref={modalRef}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl"
+              className={`relative w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl ${isClosing ? 'animate-fade-out-scale' : 'animate-fade-in-scale'}`}
             >
               <div className="sticky top-0 bg-white border-b border-gray-200 flex items-center justify-between px-4 py-3 z-10">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <FileText size={20} className="text-blue-600" />
                   Анкета абитуриента
                 </h2>
-
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={handleClose}
                   className="p-2 rounded-full hover:bg-gray-200"
                 >
                   <X size={20} />

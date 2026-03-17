@@ -4,9 +4,26 @@ import { createPortal } from 'react-dom';
 
 export const ModalButton = () => {
   const [open, setOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setIsClosing(false);
+    }, 150);
+  };
+
+  const handleToggle = () => {
+    if (open) {
+      handleClose();
+    } else {
+      setOpen(true);
+    }
+  };
 
   const updatePosition = () => {
     const rect = buttonRef.current?.getBoundingClientRect();
@@ -26,10 +43,8 @@ export const ModalButton = () => {
 
   useEffect(() => {
     if (!open) return;
-
     window.addEventListener('resize', updatePosition);
     window.addEventListener('scroll', updatePosition);
-
     return () => {
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition);
@@ -43,10 +58,9 @@ export const ModalButton = () => {
         !menuRef.current.contains(event.target as Node) &&
         !buttonRef.current?.contains(event.target as Node)
       ) {
-        setOpen(false);
+        handleClose();
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -54,8 +68,9 @@ export const ModalButton = () => {
   return (
     <>
       <button
+        type='button'
         ref={buttonRef}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={handleToggle}
         className="hover:bg-gray-200 p-2 rounded-full"
       >
         <EllipsisVertical size={24} />
@@ -71,7 +86,9 @@ export const ModalButton = () => {
           >
             <div
               ref={menuRef}
-              className="bg-white max-w-40 border border-gray-300 rounded-xl shadow-lg overflow-hidden transition-all duration-200 animate-in fade-in zoom-in-95"
+              className={`bg-white w-40 border border-gray-300 rounded-xl shadow-lg overflow-hidden ${
+                isClosing ? 'animate-fade-out' : 'animate-fade-in'
+              }`}
             >
               <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
                 <div className="flex items-center gap-4">
