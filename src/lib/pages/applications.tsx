@@ -310,14 +310,6 @@ export const DashboardPage = () => {
                   <th className="px-2 sm:px-4 py-2">
                     <div className="flex items-center justify-center gap-0.5">
                       <span>ФИО</span>
-                      <FilterDropdown
-                        label="ФИО"
-                        options={uniqueValues.fullName}
-                        selected={filters.fullName}
-                        onChange={(vals) =>
-                          handleFilterChange('fullName', vals)
-                        }
-                      />
                     </div>
                   </th>
                   <th className="px-2 sm:px-4 py-2">
