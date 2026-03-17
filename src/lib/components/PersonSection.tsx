@@ -10,7 +10,7 @@ interface Props{
   onChange:(f:keyof PersonInfo,v:string)=>void
 }
 
-export default function PersonSection({title,data,onChange}:Props){
+export const PersonSection = ({title,data,onChange}:Props) => {
 
   return(
     <section className="mb-6">

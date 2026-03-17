@@ -22,7 +22,6 @@ export const ApplicantDocuments = ({ documents }: Props) => {
         <span className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded-md w-fit">
           {doneCount} / {documents.length}
         </span>
-
         <button
           onClick={() => setOpen(true)}
           className="flex items-center gap-1 text-blue-600 text-xs hover:underline"
@@ -31,7 +30,6 @@ export const ApplicantDocuments = ({ documents }: Props) => {
           Подробнее
         </button>
       </div>
-
       {open && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center">
           <div
@@ -55,7 +53,6 @@ export const ApplicantDocuments = ({ documents }: Props) => {
                   ) : (
                     <CircleX size={16} className="text-red-500" />
                   )}
-
                   <span
                     className={
                       doc.status === 'done' ? 'text-green-600' : 'text-gray-700'

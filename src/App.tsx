@@ -1,6 +1,6 @@
 import { Login } from './lib/pages/login';
 import { DashboardPage } from './lib/pages/applications';
-import { ApplicantForm } from './lib/pages/ApplicantForm';
+import { ApplicantForm } from './lib/components/ApplicantFormModal';
 import './index.css';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 

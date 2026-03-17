@@ -1,13 +1,14 @@
 import {
-  Plus,
   LogOut,
   Users,
   ChartColumn,
-  EllipsisVertical,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ApplicantDocuments } from '../components/ApplicantDocument';
 import type { DocumentItem } from '../components/ApplicantDocument';
+import { ModalButton } from '../components/ModalButton';
+import { ExportButton } from '../components/ExportButton';
+import { ApplicantForm } from '../components/ApplicantFormModal';
 
 interface Applicant {
   id: number;
@@ -18,7 +19,6 @@ interface Applicant {
   profession: string;
   documents: DocumentItem[];
   date: string;
-  action: React.ReactElement;
 }
 
 const statisticsConfig = [
@@ -66,7 +66,29 @@ export const DashboardPage = () => {
         { name: 'ИНН', status: 'done' },
       ],
       date: '11.04.2006',
-      action: <EllipsisVertical />,
+    },
+    {
+      id: 2,
+      note: 'Закончил Рязанский колледж электроники с отличием',
+      fullName: 'Баранов Никита Андреевич',
+      address: 'г. Рязань',
+      classes: '11',
+      profession: '09.02.06 Информационные системы и программирование',
+      documents: [
+        { name: 'Заявление абитуриента', status: 'missing' },
+        { name: 'Согласие (абитуриент)', status: 'done' },
+        { name: 'Согласие (родитель)', status: 'done' },
+        { name: 'Аттестат (оригинал)', status: 'done' },
+        { name: 'Копия аттестата', status: 'missing' },
+        { name: 'Копия паспорта', status: 'done' },
+        { name: 'Фото', status: 'done' },
+        { name: 'Мед. справка', status: 'missing' },
+        { name: 'ФЛГ', status: 'done' },
+        { name: 'Копия карты прививок', status: 'done' },
+        { name: 'Копия СНИЛС', status: 'done' },
+        { name: 'ИНН', status: 'done' },
+      ],
+      date: '-',
     },
   ];
 
@@ -91,13 +113,7 @@ export const DashboardPage = () => {
               <ChartColumn size={16} />
               Статистика
             </Link>
-            <Link
-              to="/ApplicantForm"
-              className="flex items-center gap-2 bg-gray-900 text-white px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm hover:bg-black transition"
-            >
-              <Plus size={16} />
-              Добавить абитуриента
-            </Link>
+            <ApplicantForm />
             <Link
               to="/"
               className="bg-gray-300 px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
@@ -109,7 +125,7 @@ export const DashboardPage = () => {
         </header>
         <main className="py-4 sm:py-6 lg:py-8 space-y-5">
           <div className="bg-white rounded-2xl border border-gray-300 shadow-sm">
-            <div className="p-4 sm:p-6 border-b border-gray-200">
+            <div className="p-4 sm:p-6">
               <h2 className="font-medium text-gray-900 text-sm sm:text-base pb-5">
                 Статистика
               </h2>
@@ -134,17 +150,20 @@ export const DashboardPage = () => {
             </div>
           </div>
           <div className="bg-white rounded-2xl border border-gray-300 shadow-sm overflow-x-auto">
-            <div className="p-4 sm:p-6 border-b border-gray-200">
-              <h2 className="font-medium text-gray-900 text-sm sm:text-base">
-                Список абитуриентов
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Всего записей: {applicants.length}
-              </p>
+            <div className="p-4 sm:p-6 border-b border-gray-200 flex item-center justify-between">
+              <div>
+                <h2 className="font-medium text-gray-900 text-sm sm:text-base">
+                  Список абитуриентов
+                </h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                  Всего записей: {applicants.length}
+                </p>
+              </div>
+              <ExportButton />
             </div>
-            <table className="w-full min-w-[700px] sm:min-w-full text-xs sm:text-sm border-separate border-spacing-y-3">
+            <table className="w-full min-w-[700px] sm:min-w-full text-xs sm:text-sm border-collapse border-spacing-y-3">
               <thead className="text-left text-gray-600">
-                <tr className="border-b border-gray-300 text-center">
+                <tr className="border-b border-gray-200 text-center">
                   <th className="px-2 sm:px-4 py-2">№ дела</th>
                   <th className="px-2 sm:px-4 py-2">Примечание</th>
                   <th className="px-2 sm:px-4 py-2">ФИО</th>
@@ -168,7 +187,10 @@ export const DashboardPage = () => {
                   </tr>
                 )}
                 {applicants.map((applicant) => (
-                  <tr key={applicant.id} className="hover:bg-gray-100 text-center">
+                  <tr
+                    key={applicant.id}
+                    className="hover:bg-gray-100 text-center"
+                  >
                     <td className="px-2 sm:px-6 py-2 text-center">
                       {applicant.id}
                     </td>
@@ -193,9 +215,7 @@ export const DashboardPage = () => {
                     </td>
                     <td className="px-2 sm:px-6 py-2">{applicant.date}</td>
                     <td className="px-2 sm:px-6 py-2 text-center">
-                      <div className='flex justify-center'>
-                        {applicant.action}
-                      </div>
+                      <ModalButton />
                     </td>
                   </tr>
                 ))}
