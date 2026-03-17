@@ -286,12 +286,6 @@ export const DashboardPage = () => {
                   <th className="px-2 sm:px-4 py-2">
                     <div className="flex items-center justify-center gap-0.5">
                       <span>№ дела</span>
-                      <FilterDropdown
-                        label="№ дела"
-                        options={uniqueValues.id}
-                        selected={filters.id}
-                        onChange={(vals) => handleFilterChange('id', vals)}
-                      />
                     </div>
                   </th>
                   <th className="px-2 sm:px-4 py-2">
