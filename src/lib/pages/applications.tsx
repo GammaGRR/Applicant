@@ -1,5 +1,5 @@
-import { LogOut, Users, ChartColumn } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { LogOut, Users, ChartColumn, ShieldCheck } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { ApplicantDocuments } from '../components/ApplicantDocument';
 import type { DocumentItem } from '../components/ApplicantDocument';
@@ -7,6 +7,7 @@ import { ModalButton } from '../components/ModalButton';
 import { ExportButton } from '../components/ExportButton';
 import { ApplicantForm } from '../components/ApplicantFormModal';
 import { FilterDropdown } from '../components/FilterDropDown';
+import { AdminRoute } from '../components/AdminRoute';
 
 interface Applicant {
   case: string;
@@ -60,6 +61,7 @@ const statisticsConfig = [
 ];
 
 export const DashboardPage = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<Record<string, string[]>>({
     id: [],
@@ -255,6 +257,11 @@ export const DashboardPage = () => {
     });
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col w-full">
       <div className="flex-1 mx-auto w-full max-w-[95rem] px-4 sm:px-6 lg:px-8">
@@ -269,6 +276,15 @@ export const DashboardPage = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 sm:gap-3">
+            <AdminRoute>
+              <Link
+                to="/Admin"
+                className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
+              >
+                <ShieldCheck size={16} />
+                Админ
+              </Link>
+            </AdminRoute>
             <Link
               to="/Statistic"
               className="bg-gray-200 px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
@@ -277,13 +293,13 @@ export const DashboardPage = () => {
               Статистика
             </Link>
             <ApplicantForm />
-            <Link
-              to="/"
+            <button
+              onClick={handleLogout}
               className="bg-gray-300 px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
             >
               <LogOut size={16} />
               Выйти
-            </Link>
+            </button>
           </div>
         </header>
         <main className="py-4 sm:py-6 lg:py-8 space-y-5">
@@ -339,13 +355,16 @@ export const DashboardPage = () => {
               </div>
               <div className="flex items-center gap-2">
                 <ExportButton />
-                <button className="transition-all duration-300 bg-red-600 p-2 rounded-xl border border-red-600 text-white text-sm hover:bg-white hover:text-red-600">
-                  Удалить
-                </button>
+                <AdminRoute>
+                  <button className="transition-all duration-300 bg-red-600 p-2 rounded-xl border border-red-600 text-white text-sm hover:bg-white hover:text-red-600">
+                    Удалить
+                  </button>
+                </AdminRoute>
                 {hasActiveFilters && (
                   <button
                     onClick={resetAllFilters}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors">
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+                  >
                     Сбросить фильтры
                   </button>
                 )}

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { EllipsisVertical, SquarePen, Trash, Eye } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { AdminRoute } from './AdminRoute';
 
 export const ModalButton = () => {
   const [open, setOpen] = useState(false);
@@ -68,7 +69,7 @@ export const ModalButton = () => {
   return (
     <>
       <button
-        type='button'
+        type="button"
         ref={buttonRef}
         onClick={handleToggle}
         className="hover:bg-gray-200 p-2 rounded-full"
@@ -96,18 +97,20 @@ export const ModalButton = () => {
                   <p className="text-sm">Посмотреть</p>
                 </div>
               </button>
-              <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
-                <div className="flex items-center gap-4">
-                  <SquarePen size={20} />
-                  <p className="text-sm">Изменить</p>
-                </div>
-              </button>
-              <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500">
-                <div className="flex items-center gap-4">
-                  <Trash size={20} />
-                  <p className="text-sm">Удалить</p>
-                </div>
-              </button>
+              <AdminRoute>
+                <button className="w-full text-left px-4 py-2 hover:bg-gray-100">
+                  <div className="flex items-center gap-4">
+                    <SquarePen size={20} />
+                    <p className="text-sm">Изменить</p>
+                  </div>
+                </button>
+                <button className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500">
+                  <div className="flex items-center gap-4">
+                    <Trash size={20} />
+                    <p className="text-sm">Удалить</p>
+                  </div>
+                </button>
+              </AdminRoute>
             </div>
           </div>,
           document.body,
