@@ -1,6 +1,6 @@
 import { LogOut, Users, ChartColumn, ShieldCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ApplicantDocuments } from '../components/ApplicantDocument';
 import type { DocumentItem } from '../components/ApplicantDocument';
 import { ModalButton } from '../components/ModalButton';
@@ -10,8 +10,8 @@ import { FilterDropdown } from '../components/FilterDropDown';
 import { AdminRoute } from '../components/AdminRoute';
 
 interface Applicant {
-  case: string;
-  documents: DocumentItem[];
+  id: number;
+  caseNumber: string;
   fullName: string;
   classes: string;
   profession: string;
@@ -19,6 +19,9 @@ interface Applicant {
   point: number;
   benefit: string;
   note: string;
+  formData: Record<string, any>;
+  createdAt: string;
+  documents: DocumentItem[];
 }
 
 const statisticsConfig = [
@@ -26,7 +29,7 @@ const statisticsConfig = [
     colorBlock: 'bg-blue-500/10',
     colorText: 'text-blue-600',
     lable: 'Подано всего 9 класс на бюджет',
-    count: 1,
+    count: 0,
   },
   {
     colorBlock: 'bg-green-500/10',
@@ -38,13 +41,13 @@ const statisticsConfig = [
     colorBlock: 'bg-red-500/10',
     colorText: 'text-red-600',
     lable: '9 класс на коммерцию',
-    count: 1,
+    count: 0,
   },
   {
     colorBlock: 'bg-blue-500/10',
     colorText: 'text-blue-600',
     lable: 'Подано всего 11 класс на бюджет',
-    count: 1,
+    count: 0,
   },
   {
     colorBlock: 'bg-green-500/10',
@@ -56,13 +59,15 @@ const statisticsConfig = [
     colorBlock: 'bg-red-500/10',
     colorText: 'text-red-600',
     lable: '11 класс на коммерцию',
-    count: 1,
+    count: 0,
   },
 ];
 
 export const DashboardPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<Record<string, string[]>>({
     id: [],
     docStatus: [],
@@ -74,138 +79,45 @@ export const DashboardPage = () => {
     benefit: [],
   });
 
-  const applicants: Applicant[] = [
-    {
-      case: '1/9 ИС',
-      documents: [
-        { name: 'Заявление абитуриента', status: 'done' },
-        { name: 'Согласие (абитуриент)', status: 'done' },
-        { name: 'Согласие (родитель)', status: 'done' },
-        { name: 'Аттестат (оригинал)', status: 'done' },
-        { name: 'Копия аттестата', status: 'missing' },
-        { name: 'Копия паспорта', status: 'done' },
-        { name: 'Фото', status: 'done' },
-        { name: 'Мед. справка', status: 'done' },
-        { name: 'ФЛГ', status: 'done' },
-        { name: 'Копия карты прививок', status: 'done' },
-        { name: 'Копия СНИЛС', status: 'done' },
-        { name: 'ИНН', status: 'done' },
-      ],
-      fullName: 'Грязев Егор Сергеевич',
-      classes: '9',
-      profession: '09.02.11 Информационные системы и программирование',
-      finance: 'К',
-      point: 3.8,
-      benefit: '-',
-      note: 'Закончил Рязанский колледж электроники с отличием',
-    },
-    {
-      case: '2/9 ИС',
-      documents: [
-        { name: 'Заявление абитуриента', status: 'done' },
-        { name: 'Согласие (абитуриент)', status: 'done' },
-        { name: 'Согласие (родитель)', status: 'missing' },
-        { name: 'Аттестат (оригинал)', status: 'missing' },
-        { name: 'Копия аттестата', status: 'done' },
-        { name: 'Копия паспорта', status: 'done' },
-        { name: 'Фото', status: 'done' },
-        { name: 'Мед. справка', status: 'done' },
-        { name: 'ФЛГ', status: 'done' },
-        { name: 'Копия карты прививок', status: 'done' },
-        { name: 'Копия СНИЛС', status: 'done' },
-        { name: 'ИНН', status: 'done' },
-      ],
-      fullName: 'Клевцов Павел Константинович',
-      classes: '9',
-      profession: '09.02.11 Информационные системы и программирование',
-      finance: 'К',
-      point: 4.4,
-      benefit: '-',
-      note: 'Закончил Рязанский колледж электроники с отличием',
-    },
-    {
-      case: '3/9 ИС',
-      documents: [
-        { name: 'Заявление абитуриента', status: 'done' },
-        { name: 'Согласие (абитуриент)', status: 'done' },
-        { name: 'Согласие (родитель)', status: 'missing' },
-        { name: 'Аттестат (оригинал)', status: 'missing' },
-        { name: 'Копия аттестата', status: 'done' },
-        { name: 'Копия паспорта', status: 'done' },
-        { name: 'Фото', status: 'done' },
-        { name: 'Мед. справка', status: 'missing' },
-        { name: 'ФЛГ', status: 'done' },
-        { name: 'Копия карты прививок', status: 'done' },
-        { name: 'Копия СНИЛС', status: 'done' },
-        { name: 'ИНН', status: 'done' },
-      ],
-      fullName: 'Папичевский Василий Валерьевич',
-      classes: '9',
-      profession: '09.02.11 Информационные системы и программирование',
-      finance: 'Б',
-      point: 4.5,
-      benefit: '-',
-      note: 'Закончил Рязанский колледж электроники без отличием',
-    },
-    {
-      case: '4/11 ИС',
-      documents: [
-        { name: 'Заявление абитуриента', status: 'done' },
-        { name: 'Согласие (абитуриент)', status: 'done' },
-        { name: 'Согласие (родитель)', status: 'missing' },
-        { name: 'Аттестат (оригинал)', status: 'missing' },
-        { name: 'Копия аттестата', status: 'done' },
-        { name: 'Копия паспорта', status: 'done' },
-        { name: 'Фото', status: 'done' },
-        { name: 'Мед. справка', status: 'done' },
-        { name: 'ФЛГ', status: 'done' },
-        { name: 'Копия карты прививок', status: 'done' },
-        { name: 'Копия СНИЛС', status: 'done' },
-        { name: 'ИНН', status: 'done' },
-      ],
-      fullName: 'Баранов Никита Андреевич',
-      classes: '11',
-      profession: '09.02.11 Информационные системы и программирование',
-      finance: 'Б',
-      point: 5,
-      benefit: 'Слишком крут для этого',
-      note: 'Закончил Рязанский колледж электроники с отличием',
-    },
-    {
-      case: '1/9 ССА',
-      documents: [
-        { name: 'Заявление абитуриента', status: 'done' },
-        { name: 'Согласие (абитуриент)', status: 'done' },
-        { name: 'Согласие (родитель)', status: 'missing' },
-        { name: 'Аттестат (оригинал)', status: 'missing' },
-        { name: 'Копия аттестата', status: 'done' },
-        { name: 'Копия паспорта', status: 'done' },
-        { name: 'Фото', status: 'done' },
-        { name: 'Мед. справка', status: 'missing' },
-        { name: 'ФЛГ', status: 'done' },
-        { name: 'Копия карты прививок', status: 'done' },
-        { name: 'Копия СНИЛС', status: 'done' },
-        { name: 'ИНН', status: 'done' },
-      ],
-      fullName: 'Тестовые данные',
-      classes: '9',
-      profession: '09.02.06 Сетевое и ситемное администрирование',
-      finance: 'Б',
-      point: 3,
-      benefit: '-',
-      note: 'Закончил Рязанский колледж электроники без отличием',
-    },
-  ];
+  const token = localStorage.getItem('access_token');
+
+  const fetchApplicants = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:3000/applicants', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setApplicants(
+        data.map((a: any) => ({ ...a, documents: a.documents ?? [] })),
+      );
+    } catch {
+      setApplicants([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchApplicants();
+  }, [fetchApplicants]);
 
   const uniqueValues = {
-    id: [...new Set(applicants.map((a) => String(a.case)))],
+    id: [...new Set(applicants.map((a) => String(a.caseNumber)))],
     docStatus: ['Оригинал', 'Копия'],
-    fullName: [...new Set(applicants.map((a) => a.fullName))],
-    classes: [...new Set(applicants.map((a) => a.classes))],
-    profession: [...new Set(applicants.map((a) => a.profession))],
-    finance: [...new Set(applicants.map((a) => a.finance))],
-    point: [...new Set(applicants.map((a) => String(a.point)))],
-    benefit: [...new Set(applicants.map((a) => a.benefit))],
+    fullName: [...new Set(applicants.map((a) => a.fullName).filter(Boolean))],
+    classes: [...new Set(applicants.map((a) => a.classes).filter(Boolean))],
+    profession: [
+      ...new Set(applicants.map((a) => a.profession).filter(Boolean)),
+    ],
+    finance: [...new Set(applicants.map((a) => a.finance).filter(Boolean))],
+    point: [
+      ...new Set(
+        applicants.map((a) => String(a.point)).filter((v) => v !== 'undefined'),
+      ),
+    ],
+    benefit: [...new Set(applicants.map((a) => a.benefit).filter(Boolean))],
   };
 
   const handleFilterChange = (key: string, values: string[]) => {
@@ -223,11 +135,11 @@ export const DashboardPage = () => {
   const filteredApplicants = applicants.filter((a) => {
     const term = searchTerm.toLowerCase();
     const matchesSearch =
-      a.fullName.toLowerCase().includes(term) ||
-      a.case.toLowerCase().includes(term);
+      (a.fullName ?? '').toLowerCase().includes(term) ||
+      (a.caseNumber ?? '').toLowerCase().includes(term);
 
     const matchesFilters = [
-      filters.id.length === 0 || filters.id.includes(String(a.case)),
+      filters.id.length === 0 || filters.id.includes(String(a.caseNumber)),
       filters.docStatus.length === 0 ||
         filters.docStatus.includes(getCertificateStatus(a.documents)),
       filters.fullName.length === 0 || filters.fullName.includes(a.fullName),
@@ -292,7 +204,7 @@ export const DashboardPage = () => {
               <ChartColumn size={16} />
               Статистика
             </Link>
-            <ApplicantForm />
+            <ApplicantForm onCreated={fetchApplicants} />
             <button
               onClick={handleLogout}
               className="bg-gray-300 px-3 sm:px-4 py-2 rounded-lg flex items-center gap-2 text-xs sm:text-sm"
@@ -452,7 +364,17 @@ export const DashboardPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredApplicants.length === 0 && (
+                {loading && (
+                  <tr>
+                    <td
+                      colSpan={10}
+                      className="text-center py-10 text-gray-400 text-sm"
+                    >
+                      Загрузка...
+                    </td>
+                  </tr>
+                )}
+                {!loading && filteredApplicants.length === 0 && (
                   <tr>
                     <td
                       colSpan={10}
@@ -464,36 +386,51 @@ export const DashboardPage = () => {
                     </td>
                   </tr>
                 )}
-                {filteredApplicants.map((applicant) => (
-                  <tr
-                    key={applicant.case}
-                    className="hover:bg-gray-100 text-center"
-                  >
-                    <td className="px-2 sm:px-6 py-2 text-center">
-                      {applicant.case}
-                    </td>
-                    <td className="px-2 sm:px-6 py-2 max-w-[150px] sm:max-w-[250px]">
-                      <ApplicantDocuments
-                        applicantId={applicant.case}
-                        documents={applicant.documents}
-                      />
-                    </td>
-                    <td className="px-2 sm:px-6 py-2">{applicant.fullName}</td>
-                    <td className="px-2 sm:px-6 py-2">{applicant.classes}</td>
-                    <td className="px-2 sm:px-6 py-2 text-center">
-                      {applicant.profession}
-                    </td>
-                    <td className="px-2 sm:px-6 py-2 max-w-[150px] sm:max-w-[300px]">
-                      {applicant.finance}
-                    </td>
-                    <td className="px-2 sm:px-6 py-2">{applicant.point}</td>
-                    <td className="px-2 sm:px-6 py-2">{applicant.benefit}</td>
-                    <td className="px-2 sm:px-6 py-2">{applicant.note}</td>
-                    <td className="px-2 sm:px-6 py-2 text-center">
-                      <ModalButton />
-                    </td>
-                  </tr>
-                ))}
+                {!loading &&
+                  filteredApplicants.map((applicant) => (
+                    <tr
+                      key={applicant.id}
+                      className="hover:bg-gray-100 text-center"
+                    >
+                      <td className="px-2 sm:px-6 py-2 text-center">
+                        {applicant.caseNumber}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2 max-w-[150px] sm:max-w-[250px]">
+                        <ApplicantDocuments
+                          applicantId={String(applicant.id)}
+                          documents={applicant.documents}
+                        />
+                      </td>
+                      <td className="px-2 sm:px-6 py-2">
+                        {applicant.fullName || '—'}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2">
+                        {applicant.classes || '—'}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2 text-center">
+                        {applicant.profession || '—'}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2">
+                        {applicant.finance || '—'}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2">
+                        {applicant.point ?? '—'}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2">
+                        {applicant.benefit || '—'}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2">
+                        {applicant.note || '—'}
+                      </td>
+                      <td className="px-2 sm:px-6 py-2 text-center">
+                        <ModalButton
+                          applicant={applicant}
+                          onDeleted={fetchApplicants}
+                          onUpdated={fetchApplicants}
+                        />
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>

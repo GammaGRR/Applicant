@@ -1,92 +1,445 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import type { FormState, PersonInfo } from '../types/formTypes';
-import { PROFESSIONS, MAIN_DOCS, COPY_DOCS } from '../constants/formData';
 import { TextInput } from './elements/TextInput';
-import { SectionHeader } from './SectionHeader';
+import { TextArea } from './elements/TextArea';
+import { PhoneInput } from './elements/PhoneInput';
+import { RadioGroup } from './elements/RadioGroup';
 import { Checkbox } from './elements/CheckBox';
 import { Select } from './elements/Select';
-import { PersonSection } from './PersonSection';
-import { TextArea } from './elements/TextArea';
-import { RadioGroup } from './elements/RadioGroup';
 import { Field } from './Field';
 import { Plus, X, FileText } from 'lucide-react';
+import { PersonSection } from './elements/PersonSection';
 
-const emptyPerson = (): PersonInfo => ({
-  lastName: '',
-  firstName: '',
-  middleName: '',
-  address: '',
-  phone: '',
-  workplace: '',
-  position: '',
-});
+export type FieldType =
+  | 'text'
+  | 'textarea'
+  | 'phone'
+  | 'radio'
+  | 'checkbox'
+  | 'select'
+  | 'heading'
+  | 'person'
+  | 'group'
+  | 'specialty'
+  | 'benefit'
+  | 'documents';
 
-export const ApplicantForm = () => {
+export interface FormField {
+  id: number;
+  type: FieldType;
+  label: string;
+  placeholder: string;
+  required: boolean;
+  options: string[];
+  order: number;
+  cols: number;
+  isGroup: boolean;
+  groupId: string | null;
+  direction?: 'row' | 'col';
+}
+
+export interface ActiveForm {
+  id: number;
+  name: string;
+  fields: FormField[];
+}
+
+const getColClass = (cols: number) => {
+  if (cols === 1) return 'col-span-1';
+  if (cols === 2) return 'col-span-2';
+  return 'col-span-3';
+};
+
+export const extractQuickFields = (
+  fields: FormField[],
+  values: Record<string, any>,
+) => {
+  let fullName = '';
+  let classes = '';
+  let profession = '';
+  let finance = '';
+  let point: number | undefined;
+  let benefit = '';
+  let note = '';
+  let checkedDocuments: string[] = [];
+
+  fields.forEach((f) => {
+    const val = values[f.id];
+    const label = (f.label ?? '').toLowerCase();
+
+    if (f.type === 'person' && typeof val === 'object' && val !== null) {
+      const parts = [val.lastName, val.firstName, val.middleName].filter(
+        Boolean,
+      );
+      if (parts.length > 0) fullName = parts.join(' ');
+    }
+    if (f.type === 'specialty') {
+      profession = Array.isArray(val) ? val.join(', ') : (val ?? '');
+    }
+    if (f.type === 'benefit') {
+      benefit = Array.isArray(val) ? val.join(', ') : (val ?? '');
+    }
+    if (f.type === 'documents') {
+      if (Array.isArray(val)) {
+        checkedDocuments = val;
+      }
+    }
+    if (label.includes('класс') || label.includes('образование'))
+      classes = val ?? '';
+    if (label.includes('финансиров') || label.includes('бюджет'))
+      finance = val ?? '';
+    if (label.includes('балл') || label.includes('gpa'))
+      point = parseFloat(val) || undefined;
+    if (label.includes('примечан') || label.includes('заметк'))
+      note = val ?? '';
+    if (f.type !== 'specialty' && label.includes('специальност'))
+      profession = val ?? '';
+    if (f.type !== 'benefit' && label.includes('льгот')) {
+      benefit = Array.isArray(val) ? val.join(', ') : (val ?? '');
+    }
+  });
+
+  return {
+    fullName,
+    classes,
+    profession,
+    finance,
+    point,
+    benefit,
+    note,
+    checkedDocuments,
+  };
+};
+
+interface FormContentProps {
+  form: ActiveForm;
+  values: Record<string, any>;
+  setValues: (fn: (prev: Record<string, any>) => Record<string, any>) => void;
+  readOnly?: boolean;
+}
+
+export const ApplicantFormContent = ({
+  form,
+  values,
+  setValues,
+  readOnly = false,
+}: FormContentProps) => {
+  const [specialties, setSpecialties] = useState<string[]>([]);
+  const [benefits, setBenefits] = useState<string[]>([]);
+  const [documents, setDocuments] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch('http://localhost:3000/specialities')
+      .then((r) => r.json())
+      .then((data) =>
+        setSpecialties(data.map((s: any) => `${s.code} ${s.name}`)),
+      )
+      .catch(() => {});
+    fetch('http://localhost:3000/benefits')
+      .then((r) => r.json())
+      .then((data) => setBenefits(data.map((b: any) => b.name)))
+      .catch(() => {});
+    fetch('http://localhost:3000/documents')
+      .then((r) => r.json())
+      .then((data) => setDocuments(data.map((d: any) => d.name)))
+      .catch(() => {});
+  }, []);
+
+  const renderFieldContent = (field: FormField) => {
+    const value = values[field.id];
+    const onChange = (v: any) =>
+      setValues((prev) => ({ ...prev, [field.id]: v }));
+
+    switch (field.type) {
+      case 'person':
+        return (
+          <PersonSection
+            title={field.label}
+            data={
+              values[field.id] ?? {
+                lastName: '',
+                firstName: '',
+                middleName: '',
+                address: '',
+                phone: '',
+                workplace: '',
+                position: '',
+              }
+            }
+            onChange={
+              readOnly
+                ? () => {}
+                : (key, val) =>
+                    setValues((prev) => ({
+                      ...prev,
+                      [field.id]: { ...prev[field.id], [key]: val },
+                    }))
+            }
+          />
+        );
+      case 'radio':
+        return (
+          <RadioGroup
+            value={value ?? ''}
+            onChange={readOnly ? () => {} : onChange}
+            options={field.options.map((o) => ({ label: o, value: o }))}
+            direction={field.direction ?? 'row'}
+          />
+        );
+      case 'text':
+        return (
+          <TextInput
+            value={value ?? ''}
+            onChange={readOnly ? () => {} : onChange}
+            placeholder={field.placeholder}
+          />
+        );
+      case 'textarea':
+        return (
+          <TextArea
+            value={value ?? ''}
+            onChange={readOnly ? () => {} : onChange}
+            placeholder={field.placeholder}
+          />
+        );
+      case 'phone':
+        return (
+          <PhoneInput
+            value={value ?? ''}
+            onChange={readOnly ? () => {} : onChange}
+          />
+        );
+      case 'checkbox':
+        return field.options?.length > 0 ? (
+          <Checkbox
+            options={field.options}
+            value={value ?? []}
+            onChangeMultiple={readOnly ? () => {} : onChange}
+            direction={field.direction ?? 'row'}
+          />
+        ) : (
+          <Checkbox
+            label={field.label}
+            checked={value ?? false}
+            onChange={readOnly ? () => {} : onChange}
+          />
+        );
+      case 'select':
+        return (
+          <Select
+            value={value ?? ''}
+            onChange={readOnly ? () => {} : onChange}
+            options={field.options}
+          />
+        );
+      case 'specialty':
+        return (
+          <Select
+            value={value ?? ''}
+            onChange={readOnly ? () => {} : onChange}
+            options={specialties}
+          />
+        );
+      case 'benefit':
+        return (
+          <Checkbox
+            options={benefits}
+            value={value ?? []}
+            onChangeMultiple={readOnly ? () => {} : onChange}
+            direction={field.direction ?? 'col'}
+          />
+        );
+      case 'documents':
+        return (
+          <Checkbox
+            options={documents}
+            value={value ?? []}
+            onChangeMultiple={readOnly ? () => {} : onChange}
+            direction={field.direction ?? 'col'}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderField = (field: FormField) => {
+    if (field.type === 'heading') {
+      return (
+        <div
+          key={field.id}
+          className="pt-2 pb-1 border-b border-gray-200 col-span-3"
+        >
+          <h3 className="text-base font-semibold text-gray-800">
+            {field.label}
+          </h3>
+        </div>
+      );
+    }
+
+    if (field.type === 'group') {
+      const groupFields = form.fields
+        .filter((f) => f.groupId === String(field.id))
+        .sort((a, b) => a.order - b.order);
+      return (
+        <div
+          key={field.id}
+          className="col-span-3 border border-gray-200 rounded-xl p-4"
+        >
+          {field.label && (
+            <p className="text-sm font-medium text-gray-600 mb-3">
+              {field.label}
+            </p>
+          )}
+          <div className="grid grid-cols-3 gap-3">
+            {groupFields.map((gf) => (
+              <div key={gf.id} className={getColClass(gf.cols ?? 3)}>
+                <Field
+                  label={gf.type === 'checkbox' ? '' : gf.label}
+                  required={gf.required}
+                >
+                  {renderFieldContent(gf)}
+                </Field>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (field.type === 'person') {
+      return (
+        <div key={field.id} className="col-span-3">
+          {renderFieldContent(field)}
+        </div>
+      );
+    }
+
+    if (field.type === 'documents') {
+      return (
+        <div key={field.id} className="col-span-3">
+          <Field label={field.label || 'Документы'} required={field.required}>
+            {renderFieldContent(field)}
+          </Field>
+        </div>
+      );
+    }
+
+    return (
+      <div key={field.id} className={getColClass(field.cols ?? 3)}>
+        <Field
+          label={field.type === 'checkbox' ? '' : field.label}
+          required={field.required}
+        >
+          {renderFieldContent(field)}
+        </Field>
+      </div>
+    );
+  };
+
+  const topLevelFields = form.fields
+    .filter((f) => !f.groupId)
+    .sort((a, b) => a.order - b.order);
+
+  return (
+    <div
+      className={`grid grid-cols-3 gap-4 ${readOnly ? 'pointer-events-none opacity-80' : ''}`}
+    >
+      {topLevelFields.map((field) => renderField(field))}
+    </div>
+  );
+};
+
+export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
   const [open, setOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [activeForm, setActiveForm] = useState<ActiveForm | null>(null);
+  const [caseNumber, setCaseNumber] = useState('');
+  const [values, setValues] = useState<Record<string, any>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('http://localhost:3000/forms/active')
+      .then((r) => r.json())
+      .then((data) => {
+        setActiveForm(data);
+        if (data?.fields) {
+          const initial: Record<string, any> = {};
+          data.fields.forEach((f: FormField) => {
+            if (f.type === 'checkbox') {
+              initial[f.id] = f.options?.length > 0 ? [] : false;
+            } else if (f.type === 'person') {
+              initial[f.id] = {
+                lastName: '',
+                firstName: '',
+                middleName: '',
+                address: '',
+                phone: '',
+                workplace: '',
+                position: '',
+              };
+            } else {
+              initial[f.id] = '';
+            }
+          });
+          setValues(initial);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleClose = () => {
     setIsClosing(true);
     setTimeout(() => {
       setOpen(false);
       setIsClosing(false);
+      setError(null);
+      setCaseNumber('');
     }, 150);
   };
 
-  const initialForm: FormState = {
-    caseNumber: '',
-    lastName: '',
-    firstName: '',
-    middleName: '',
-    address: '',
-    classCount: '',
-    profession: '',
+  const handleSave = async () => {
+    if (!activeForm) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem('access_token');
+      const quick = extractQuickFields(activeForm.fields, values);
+      let documents: { name: string; status: 'done' | 'missing' }[] = [];
+      try {
+        const docsRes = await fetch('http://localhost:3000/documents');
+        const allDocs = await docsRes.json();
+        const allDocNames: string[] = allDocs.map((d: any) => d.name);
+        documents = allDocNames.map((name) => ({
+          name,
+          status: quick.checkedDocuments.includes(name) ? 'done' : 'missing',
+        }));
+      } catch {}
 
-    cert9: false,
-    cert11: false,
-    diplomaProfessional: false,
-    needsDorm: false,
-
-    mother: emptyPerson(),
-    father: emptyPerson(),
-
-    note: '',
-
-    docs: Object.fromEntries(MAIN_DOCS.map((d) => [d, false])) as Record<
-      string,
-      boolean
-    >,
-    copyDocs: Object.fromEntries(COPY_DOCS.map((d) => [d, false])) as Record<
-      string,
-      boolean
-    >,
-  };
-
-  const [form, setForm] = useState<FormState>(initialForm);
-  const setField = <K extends keyof FormState>(k: K, v: FormState[K]) => {
-    setForm((p) => ({ ...p, [k]: v }));
-  };
-
-  const updatePerson = (
-    parent: 'mother' | 'father',
-    field: keyof PersonInfo,
-    value: string,
-  ) => {
-    setForm((prev) => ({
-      ...prev,
-      [parent]: { ...prev[parent], [field]: value },
-    }));
-  };
-
-  const resetForm = () => setForm(initialForm);
-
-  const handleSave = () => {
-    alert('Анкета сохранена!');
-    console.log(form);
-    resetForm();
-    handleClose();
+      const response = await fetch('http://localhost:3000/applicants', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          caseNumber,
+          formData: values,
+          formId: activeForm.id,
+          ...quick,
+          documents,
+        }),
+      });
+      if (!response.ok) throw new Error();
+      handleClose();
+      onCreated?.();
+    } catch {
+      setError('Не удалось сохранить анкету. Попробуйте ещё раз.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -112,6 +465,7 @@ export const ApplicantForm = () => {
         <Plus size={16} />
         Добавить абитуриента
       </button>
+
       {open &&
         createPortal(
           <div
@@ -127,7 +481,7 @@ export const ApplicantForm = () => {
               <div className="sticky top-0 bg-white border-b border-gray-200 flex items-center justify-between px-4 py-3 z-10">
                 <h2 className="flex items-center gap-2 text-lg font-semibold">
                   <FileText size={20} className="text-blue-600" />
-                  Анкета абитуриента
+                  {activeForm?.name ?? 'Анкета абитуриента'}
                 </h2>
                 <button
                   type="button"
@@ -137,89 +491,48 @@ export const ApplicantForm = () => {
                   <X size={20} />
                 </button>
               </div>
-              <div className="p-6 space-y-6">
-                <section>
-                  <SectionHeader title="Основная информация" />
-                  <Field label="№ дела" required>
-                    <TextInput
-                      value={form.caseNumber}
-                      onChange={(v) => setField('caseNumber', v)}
-                    />
-                  </Field>
-                  <SectionHeader title="Документы" />
-                  <div className="space-y-2">
-                    {MAIN_DOCS.map((doc) => (
-                      <Checkbox
-                        key={doc}
-                        label={doc}
-                        checked={form.docs[doc]}
-                        onChange={(v) =>
-                          setField('docs', { ...form.docs, [doc]: v })
-                        }
+              <div className="p-6">
+                {!activeForm && (
+                  <p className="text-gray-400 text-sm text-center py-8">
+                    Активная форма не выбрана. Создайте форму в админ панели.
+                  </p>
+                )}
+                {activeForm && (
+                  <>
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        № дела <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={caseNumber}
+                        onChange={(e) => setCaseNumber(e.target.value)}
+                        placeholder="Например: 1/9 ИС"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                    ))}
-                  </div>
-                  <div className="space-y-2">
-                    {COPY_DOCS.map((doc) => (
-                      <Checkbox
-                        key={doc}
-                        label={doc}
-                        checked={form.copyDocs[doc]}
-                        onChange={(v) =>
-                          setField('copyDocs', { ...form.copyDocs, [doc]: v })
-                        }
-                      />
-                    ))}
-                  </div>
-                  <Field label="Примечание">
-                    <TextArea
-                      value={form.note}
-                      onChange={(v) => setField('note', v)}
+                    </div>
+                    <ApplicantFormContent
+                      form={activeForm}
+                      values={values}
+                      setValues={setValues}
                     />
-                  </Field>
-                  <Field label="Количество классов" required>
-                    <RadioGroup
-                      options={[
-                        { label: '9 классов', value: '9' },
-                        { label: '11 классов', value: '11' },
-                      ]}
-                      value={form.classCount}
-                      onChange={(v) => setField('classCount', v)}
-                    />
-                  </Field>
-                  <Field label="Профессия">
-                    <Select
-                      options={PROFESSIONS}
-                      value={form.profession}
-                      onChange={(v) => setField('profession', v)}
-                    />
-                  </Field>
-                </section>
-                <section>
-                  <SectionHeader title="Образование" />
-                  <Checkbox
-                    label="Общежитие"
-                    checked={form.needsDorm}
-                    onChange={(v) => setField('needsDorm', v)}
-                  />
-                </section>
-                <PersonSection
-                  title="Информация о матери"
-                  data={form.mother}
-                  onChange={(f, v) => updatePerson('mother', f, v)}
-                />
-                <PersonSection
-                  title="Информация об отце"
-                  data={form.father}
-                  onChange={(f, v) => updatePerson('father', f, v)}
-                />
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-md"
-                >
-                  Сохранить анкету
-                </button>
+                  </>
+                )}
+                {error && (
+                  <p className="mt-4 text-sm text-red-500 text-center">
+                    {error}
+                  </p>
+                )}
+                {activeForm && (
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="mt-6 w-full py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-md disabled:opacity-50 transition"
+                  >
+                    {saving ? 'Сохранение...' : 'Сохранить анкету'}
+                  </button>
+                )}
               </div>
             </div>
           </div>,

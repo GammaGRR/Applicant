@@ -1,12 +1,23 @@
 import { useState } from 'react';
-import { Users, BookOpen, Award, FileText, LogOut, Shield, Menu, X } from 'lucide-react';
+import {
+  Users,
+  BookOpen,
+  Award,
+  FileText,
+  LogOut,
+  Shield,
+  Menu,
+  X,
+  WandSparkles,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { UsersSectionPage } from './UsersSection';
 import { SpecialitiesSectionPage } from './SpecialitiesSection';
 import { BenefitsSectionPage } from './BenefitSection';
 import { DocumentsSectionPage } from './DocumentsSection';
+import { FormsSectionPage } from './FormsSection';
 
-type Section = 'users' | 'specialities' | 'benefits' | 'documents';
+type Section = 'users' | 'specialities' | 'benefits' | 'documents' | 'forms';
 
 export const AdminPage = () => {
   const [activeSection, setActiveSection] = useState<Section>('users');
@@ -18,6 +29,7 @@ export const AdminPage = () => {
     { id: 'specialities', label: 'Специальности', icon: BookOpen },
     { id: 'benefits', label: 'Льготы', icon: Award },
     { id: 'documents', label: 'Документы', icon: FileText },
+    { id: 'forms', label: 'Конструктор форм', icon: WandSparkles },
   ];
 
   const handleSectionChange = (id: Section) => {
@@ -43,7 +55,9 @@ export const AdminPage = () => {
         <div className="flex items-center gap-2 px-4 py-5 border-b border-gray-300 overflow-hidden">
           <Shield className="text-blue-600 shrink-0" size={24} />
           {isExpanded && (
-            <span className="font-semibold text-lg whitespace-nowrap">Админ панель</span>
+            <span className="font-semibold text-lg whitespace-nowrap">
+              Админ панель
+            </span>
           )}
         </div>
         <nav className="flex-1 px-2 py-4 space-y-1">
@@ -57,7 +71,9 @@ export const AdminPage = () => {
               `}
             >
               <item.icon size={18} className="shrink-0" />
-              {isExpanded && <span className="whitespace-nowrap">{item.label}</span>}
+              {isExpanded && (
+                <span className="whitespace-nowrap">{item.label}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -123,6 +139,7 @@ export const AdminPage = () => {
           {activeSection === 'specialities' && <SpecialitiesSection />}
           {activeSection === 'benefits' && <BenefitsSection />}
           {activeSection === 'documents' && <DocumentsSection />}
+          {activeSection === 'forms' && <FormsSectionPage />}
         </main>
       </div>
     </div>
