@@ -50,6 +50,7 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const token = localStorage.getItem('access_token');
@@ -102,6 +103,7 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
   const openModal = (mode: ModalMode) => {
     setValues(applicant.formData ?? {});
     setError(null);
@@ -170,12 +172,6 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
   };
 
   const handleDelete = async () => {
-    if (
-      !confirm(
-        `Удалить абитуриента ${applicant.fullName || applicant.caseNumber}?`,
-      )
-    )
-      return;
     setDeleting(true);
     try {
       const res = await fetch(
@@ -186,18 +182,18 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
         },
       );
       if (!res.ok) throw new Error();
+      setConfirmDelete(false);
       onDeleted?.();
     } catch {
-      alert('Не удалось удалить запись.');
-    } finally {
       setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
   const modalTitle =
     modalMode === 'view'
-      ? `Анкета: ${applicant.fullName || applicant.caseNumber}`
-      : `Редактирование: ${applicant.fullName || applicant.caseNumber}`;
+      ? `Анкета: ${applicant.caseNumber}`
+      : `Редактирование: ${applicant.caseNumber}`;
 
   return (
     <>
@@ -242,7 +238,10 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
                   </div>
                 </button>
                 <button
-                  onClick={handleDelete}
+                  onClick={() => {
+                    setOpen(false);
+                    setConfirmDelete(true);
+                  }}
                   className="w-full text-left px-4 py-2 hover:bg-gray-100 text-red-500"
                 >
                   <div className="flex items-center gap-4">
@@ -311,7 +310,6 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
                     {applicant.caseNumber}
                   </span>
                 </p>
-
                 {activeForm ? (
                   <ApplicantFormContent
                     form={activeForm}
@@ -324,13 +322,11 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
                     Загрузка формы...
                   </p>
                 )}
-
                 {error && (
                   <p className="mt-4 text-sm text-red-500 text-center">
                     {error}
                   </p>
                 )}
-
                 {modalMode === 'edit' && activeForm && (
                   <button
                     type="button"
@@ -341,6 +337,40 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
                     {saving ? 'Сохранение...' : 'Сохранить изменения'}
                   </button>
                 )}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      {confirmDelete &&
+        createPortal(
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+              onClick={() => setConfirmDelete(false)}
+            />
+            <div className="relative bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+              <h3 className="text-base font-semibold text-gray-800 mb-2">
+                Удалить абитуриента?
+              </h3>
+              <p className="text-sm text-gray-500 mb-6">
+                {applicant.fullName || applicant.caseNumber} будет удалён без
+                возможности восстановления.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="flex-1 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex-1 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition disabled:opacity-50"
+                >
+                  {deleting ? 'Удаление...' : 'Удалить'}
+                </button>
               </div>
             </div>
           </div>,

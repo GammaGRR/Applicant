@@ -8,6 +8,7 @@ import { ExportButton } from '../components/ExportButton';
 import { ApplicantForm } from '../components/ApplicantFormModal';
 import { FilterDropdown } from '../components/FilterDropDown';
 import { AdminRoute } from '../components/AdminRoute';
+import { ClearDatabaseButton } from '../components/ClearDatabaseButton';
 
 interface Applicant {
   id: number;
@@ -89,9 +90,7 @@ export const DashboardPage = () => {
       });
       if (!res.ok) throw new Error();
       const data = await res.json();
-      setApplicants(
-        data.map((a: any) => ({ ...a, documents: a.documents ?? [] })),
-      );
+      setApplicants(data.map((a: any) => ({ ...a, documents: a.documents ?? [] })));
     } catch {
       setApplicants([]);
     } finally {
@@ -108,15 +107,9 @@ export const DashboardPage = () => {
     docStatus: ['Оригинал', 'Копия'],
     fullName: [...new Set(applicants.map((a) => a.fullName).filter(Boolean))],
     classes: [...new Set(applicants.map((a) => a.classes).filter(Boolean))],
-    profession: [
-      ...new Set(applicants.map((a) => a.profession).filter(Boolean)),
-    ],
+    profession: [...new Set(applicants.map((a) => a.profession).filter(Boolean))],
     finance: [...new Set(applicants.map((a) => a.finance).filter(Boolean))],
-    point: [
-      ...new Set(
-        applicants.map((a) => String(a.point)).filter((v) => v !== 'undefined'),
-      ),
-    ],
+    point: [...new Set(applicants.map((a) => String(a.point)).filter((v) => v !== 'undefined'))],
     benefit: [...new Set(applicants.map((a) => a.benefit).filter(Boolean))],
   };
 
@@ -144,8 +137,7 @@ export const DashboardPage = () => {
         filters.docStatus.includes(getCertificateStatus(a.documents)),
       filters.fullName.length === 0 || filters.fullName.includes(a.fullName),
       filters.classes.length === 0 || filters.classes.includes(a.classes),
-      filters.profession.length === 0 ||
-        filters.profession.includes(a.profession),
+      filters.profession.length === 0 || filters.profession.includes(a.profession),
       filters.finance.length === 0 || filters.finance.includes(a.finance),
       filters.point.length === 0 || filters.point.includes(String(a.point)),
       filters.benefit.length === 0 || filters.benefit.includes(a.benefit),
@@ -224,12 +216,8 @@ export const DashboardPage = () => {
                 {statisticsConfig.map((item, index) => (
                   <div key={index}>
                     <section>
-                      <div
-                        className={`px-6 py-6 rounded-xl ${item.colorBlock}`}
-                      >
-                        <p className={`text-sm ${item.colorText}`}>
-                          {item.lable}
-                        </p>
+                      <div className={`px-6 py-6 rounded-xl ${item.colorBlock}`}>
+                        <p className={`text-sm ${item.colorText}`}>{item.lable}</p>
                         <h1 className="text-3xl sm:text-4xl text-gray-700">
                           {item.count}
                         </h1>
@@ -258,19 +246,14 @@ export const DashboardPage = () => {
                 <p className="text-xs sm:text-sm text-gray-500 mt-1">
                   Всего записей: {filteredApplicants.length}
                   {filteredApplicants.length !== applicants.length && (
-                    <span className="text-gray-400">
-                      {' '}
-                      (из {applicants.length})
-                    </span>
+                    <span className="text-gray-400"> (из {applicants.length})</span>
                   )}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <ExportButton />
                 <AdminRoute>
-                  <button className="transition-all duration-300 bg-red-600 p-2 rounded-xl border border-red-600 text-white text-sm hover:bg-white hover:text-red-600">
-                    Удалить
-                  </button>
+                  <ClearDatabaseButton onCleared={fetchApplicants} />
                 </AdminRoute>
                 {hasActiveFilters && (
                   <button
@@ -297,9 +280,7 @@ export const DashboardPage = () => {
                         label="Список документов"
                         options={uniqueValues.docStatus}
                         selected={filters.docStatus}
-                        onChange={(vals) =>
-                          handleFilterChange('docStatus', vals)
-                        }
+                        onChange={(vals) => handleFilterChange('docStatus', vals)}
                       />
                     </div>
                   </th>
@@ -326,9 +307,7 @@ export const DashboardPage = () => {
                         label="Специальность"
                         options={uniqueValues.profession}
                         selected={filters.profession}
-                        onChange={(vals) =>
-                          handleFilterChange('profession', vals)
-                        }
+                        onChange={(vals) => handleFilterChange('profession', vals)}
                       />
                     </div>
                   </th>
@@ -366,71 +345,43 @@ export const DashboardPage = () => {
               <tbody>
                 {loading && (
                   <tr>
-                    <td
-                      colSpan={10}
-                      className="text-center py-10 text-gray-400 text-sm"
-                    >
+                    <td colSpan={10} className="text-center py-10 text-gray-400 text-sm">
                       Загрузка...
                     </td>
                   </tr>
                 )}
                 {!loading && filteredApplicants.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={10}
-                      className="text-center py-10 sm:py-12 text-gray-500"
-                    >
+                    <td colSpan={10} className="text-center py-10 sm:py-12 text-gray-500">
                       {hasActiveFilters
                         ? 'Нет записей, соответствующих фильтрам'
                         : 'Нет записей'}
                     </td>
                   </tr>
                 )}
-                {!loading &&
-                  filteredApplicants.map((applicant) => (
-                    <tr
-                      key={applicant.id}
-                      className="hover:bg-gray-100 text-center"
-                    >
-                      <td className="px-2 sm:px-6 py-2 text-center">
-                        {applicant.caseNumber}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2 max-w-[150px] sm:max-w-[250px]">
-                        <ApplicantDocuments
-                          applicantId={String(applicant.id)}
-                          documents={applicant.documents}
-                        />
-                      </td>
-                      <td className="px-2 sm:px-6 py-2">
-                        {applicant.fullName || '—'}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2">
-                        {applicant.classes || '—'}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2 text-center">
-                        {applicant.profession || '—'}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2">
-                        {applicant.finance || '—'}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2">
-                        {applicant.point ?? '—'}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2">
-                        {applicant.benefit || '—'}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2">
-                        {applicant.note || '—'}
-                      </td>
-                      <td className="px-2 sm:px-6 py-2 text-center">
-                        <ModalButton
-                          applicant={applicant}
-                          onDeleted={fetchApplicants}
-                          onUpdated={fetchApplicants}
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                {!loading && filteredApplicants.map((applicant) => (
+                  <tr key={applicant.id} className="hover:bg-gray-100 text-center">
+                    <td className="px-2 sm:px-6 py-2 text-center">
+                      {applicant.caseNumber}
+                    </td>
+                    <td className="px-2 sm:px-6 py-2 max-w-[150px] sm:max-w-[250px]">
+                      <ApplicantDocuments
+                        applicantId={String(applicant.id)}
+                        documents={applicant.documents}
+                      />
+                    </td>
+                    <td className="px-2 sm:px-6 py-2">{applicant.fullName || '—'}</td>
+                    <td className="px-2 sm:px-6 py-2">{applicant.classes || '—'}</td>
+                    <td className="px-2 sm:px-6 py-2 text-center">{applicant.profession || '—'}</td>
+                    <td className="px-2 sm:px-6 py-2">{applicant.finance || '—'}</td>
+                    <td className="px-2 sm:px-6 py-2">{applicant.point ?? '—'}</td>
+                    <td className="px-2 sm:px-6 py-2">{applicant.benefit || '—'}</td>
+                    <td className="px-2 sm:px-6 py-2">{applicant.note || '—'}</td>
+                    <td className="px-2 sm:px-6 py-2 text-center">
+                      <ModalButton applicant={applicant} onDeleted={fetchApplicants} onUpdated={fetchApplicants} />
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
