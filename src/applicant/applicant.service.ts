@@ -19,6 +19,7 @@ export class ApplicantsService {
   }
 
   async create(data: {
+    caseNumber?: string;
     formData: Record<string, any>;
     formId?: number;
     fullName?: string;
@@ -29,24 +30,24 @@ export class ApplicantsService {
     benefit?: string;
     note?: string;
     documents?: { name: string; status: 'done' | 'missing' }[];
+    checkedDocuments?: string[];
   }): Promise<Applicant> {
-    const count = await this.applicantRepository.count();
-    const year = new Date().getFullYear();
-    const caseNumber = `${count + 1}/${year}`;
-
-    const applicant = this.applicantRepository.create({
-      ...data,
-      caseNumber,
-    });
+    const { checkedDocuments: _, ...saveData } = data;
+    const applicant = this.applicantRepository.create(saveData);
     return this.applicantRepository.save(applicant);
   }
 
-  async update(id: number, data: Partial<Applicant>): Promise<Applicant | null> {
-    await this.applicantRepository.update(id, data);
+  async update(id: number, data: Partial<Applicant> & { checkedDocuments?: string[] }): Promise<Applicant | null> {
+    const { checkedDocuments: _, ...saveData } = data;
+    await this.applicantRepository.update(id, saveData);
     return this.findOne(id);
   }
 
   async remove(id: number): Promise<void> {
     await this.applicantRepository.delete(id);
+  }
+
+  async clearAll(): Promise<void> {
+    await this.applicantRepository.clear();
   }
 }
