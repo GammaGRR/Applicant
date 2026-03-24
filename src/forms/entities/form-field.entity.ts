@@ -44,4 +44,7 @@ export class FormField {
 
   @Column({ default: 'row' })
   direction: string;
+
+  @Column({ default: false })
+  isApplicant: boolean;
 }
