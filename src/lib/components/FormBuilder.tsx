@@ -6,8 +6,13 @@ import { PhoneInput } from './elements/PhoneInput';
 import { RadioGroup } from './elements/RadioGroup';
 import { Checkbox } from './elements/CheckBox';
 import { Select } from './elements/Select';
-import { PersonSection } from './elements/PersonSection';
+import {
+  PersonSection,
+  PERSON_FIELDS,
+  DEFAULT_PERSON_FIELDS,
+} from './elements/PersonSection';
 import { Field } from './Field';
+import type { PersonInfo } from '../types/formTypes';
 
 type FieldType =
   | 'text'
@@ -19,9 +24,9 @@ type FieldType =
   | 'heading'
   | 'person'
   | 'group'
-  | 'specialty'   
-  | 'benefit'     
-  | 'documents'; 
+  | 'specialty' // Выпадающий из таблицы specialities
+  | 'benefit' // Выпадающий из таблицы benefits
+  | 'documents'; // Чекбоксы из таблицы documents
 
 interface Field {
   uid: string;
@@ -36,21 +41,22 @@ interface Field {
   isGroup: boolean;
   groupId: string | null;
   direction: 'row' | 'col';
+  isApplicant: boolean;
 }
 
 const FIELD_TYPES: { type: FieldType; label: string; group?: string }[] = [
-  { type: 'heading',   label: 'Заголовок раздела' },
-  { type: 'group',     label: 'Группа полей' },
-  { type: 'text',      label: 'Текст' },
-  { type: 'textarea',  label: 'Многострочный текст' },
-  { type: 'phone',     label: 'Телефон' },
-  { type: 'radio',     label: 'Радио кнопки' },
-  { type: 'checkbox',  label: 'Чекбокс' },
-  { type: 'select',    label: 'Выпадающий список' },
-  { type: 'person',    label: 'Информация о персоне' },
-  { type: 'specialty', label: 'Специальность (из БД)',  group: 'db' },
-  { type: 'benefit',   label: 'Льгота (из БД)',         group: 'db' },
-  { type: 'documents', label: 'Документы (из БД)',      group: 'db' },
+  { type: 'heading', label: 'Заголовок раздела' },
+  { type: 'group', label: 'Группа полей' },
+  { type: 'text', label: 'Текст' },
+  { type: 'textarea', label: 'Многострочный текст' },
+  { type: 'phone', label: 'Телефон' },
+  { type: 'radio', label: 'Радио кнопки' },
+  { type: 'checkbox', label: 'Чекбокс' },
+  { type: 'select', label: 'Выпадающий список' },
+  { type: 'person', label: 'Информация о персоне' },
+  { type: 'specialty', label: 'Специальность (из БД)', group: 'db' },
+  { type: 'benefit', label: 'Льгота (из БД)', group: 'db' },
+  { type: 'documents', label: 'Документы (из БД)', group: 'db' },
 ];
 
 const COL_OPTIONS = [
@@ -59,7 +65,15 @@ const COL_OPTIONS = [
   { value: 3, label: 'Полная' },
 ];
 
-const NO_GROUP_TYPES: FieldType[] = ['heading', 'group', 'person', 'specialty', 'benefit', 'documents'];
+// Типы, которые не нужно показывать в панели добавления внутри группы
+const NO_GROUP_TYPES: FieldType[] = [
+  'heading',
+  'group',
+  'person',
+  'specialty',
+  'benefit',
+  'documents',
+];
 
 const emptyField = (
   type: FieldType,
@@ -71,12 +85,13 @@ const emptyField = (
   label: '',
   placeholder: '',
   required: false,
-  options: [],
+  options: type === 'person' ? [...DEFAULT_PERSON_FIELDS] : [],
   order,
   cols: 3,
   isGroup: type === 'group',
   groupId,
   direction: 'row',
+  isApplicant: false,
 });
 
 const getColClass = (cols: number) => {
@@ -84,6 +99,8 @@ const getColClass = (cols: number) => {
   if (cols === 2) return 'col-span-2';
   return 'col-span-3';
 };
+
+// ─── Хук загрузки данных из БД ──────────────────────────────────────────────
 
 const useDbOptions = () => {
   const [specialties, setSpecialties] = useState<string[]>([]);
@@ -93,7 +110,9 @@ const useDbOptions = () => {
   useEffect(() => {
     fetch('http://localhost:3000/specialities')
       .then((r) => r.json())
-      .then((data) => setSpecialties(data.map((s: any) => `${s.code} ${s.name}`)))
+      .then((data) =>
+        setSpecialties(data.map((s: any) => `${s.code} ${s.name}`)),
+      )
       .catch(() => {});
 
     fetch('http://localhost:3000/benefits')
@@ -109,6 +128,8 @@ const useDbOptions = () => {
 
   return { specialties, benefits, documents };
 };
+
+// ─── OptionsEditor ───────────────────────────────────────────────────────────
 
 const OptionsEditor = ({
   options,
@@ -135,7 +156,10 @@ const OptionsEditor = ({
               placeholder={`Вариант ${i + 1}`}
               className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
             />
-            <button onClick={() => removeOption(i)} className="text-red-400 hover:text-red-600">
+            <button
+              onClick={() => removeOption(i)}
+              className="text-red-400 hover:text-red-600"
+            >
               <X size={14} />
             </button>
           </div>
@@ -152,6 +176,8 @@ const OptionsEditor = ({
   );
 };
 
+// ─── Рендер содержимого поля в превью ────────────────────────────────────────
+
 const renderFieldContent = (
   field: Field,
   value: any,
@@ -161,9 +187,21 @@ const renderFieldContent = (
 ) => {
   switch (field.type) {
     case 'text':
-      return <TextInput value={value ?? ''} onChange={onChange} placeholder={field.placeholder} />;
+      return (
+        <TextInput
+          value={value ?? ''}
+          onChange={onChange}
+          placeholder={field.placeholder}
+        />
+      );
     case 'textarea':
-      return <TextArea value={value ?? ''} onChange={onChange} placeholder={field.placeholder} />;
+      return (
+        <TextArea
+          value={value ?? ''}
+          onChange={onChange}
+          placeholder={field.placeholder}
+        />
+      );
     case 'phone':
       return <PhoneInput value={value ?? ''} onChange={onChange} />;
     case 'radio':
@@ -184,10 +222,20 @@ const renderFieldContent = (
           direction={field.direction ?? 'row'}
         />
       ) : (
-        <Checkbox label={field.label || 'Чекбокс'} checked={value ?? false} onChange={onChange} />
+        <Checkbox
+          label={field.label || 'Чекбокс'}
+          checked={value ?? false}
+          onChange={onChange}
+        />
       );
     case 'select':
-      return <Select value={value ?? ''} onChange={onChange} options={field.options} />;
+      return (
+        <Select
+          value={value ?? ''}
+          onChange={onChange}
+          options={field.options}
+        />
+      );
     case 'specialty':
       return (
         <Select
@@ -218,9 +266,29 @@ const renderFieldContent = (
       return (
         <PersonSection
           title={field.label}
-          data={value ?? { lastName: '', firstName: '', middleName: '', address: '', phone: '', workplace: '', position: '' }}
+          data={
+            value ?? {
+              lastName: '',
+              firstName: '',
+              middleName: '',
+              address: '',
+              phone: '',
+              workplace: '',
+              position: '',
+            }
+          }
           onChange={(key, val) =>
-            setValues((p: any) => ({ ...p, [field.uid]: { ...p[field.uid], [key]: val } }))
+            setValues((p: any) => ({
+              ...p,
+              [field.uid]: { ...p[field.uid], [key]: val },
+            }))
+          }
+          activeFields={
+            field.options?.length > 0
+              ? field.options.filter((o): o is keyof PersonInfo =>
+                  DEFAULT_PERSON_FIELDS.includes(o as keyof PersonInfo),
+                )
+              : undefined
           }
         />
       );
@@ -233,32 +301,58 @@ const FormPreview = ({ fields }: { fields: Field[] }) => {
   const [values, setValues] = useState<Record<string, any>>({});
   const dbOptions = useDbOptions();
 
-  const topLevel = [...fields].filter((f) => !f.groupId).sort((a, b) => a.order - b.order);
+  const topLevel = [...fields]
+    .filter((f) => !f.groupId)
+    .sort((a, b) => a.order - b.order);
 
   return (
     <div className="grid grid-cols-3 gap-4">
       {topLevel.map((field) => {
         if (field.type === 'heading') {
           return (
-            <div key={field.uid} className="col-span-3 pt-2 pb-1 border-b border-gray-200">
-              <h3 className="text-base font-semibold text-gray-800">{field.label || 'Заголовок'}</h3>
+            <div
+              key={field.uid}
+              className="col-span-3 pt-2 pb-1 border-b border-gray-200"
+            >
+              <h3 className="text-base font-semibold text-gray-800">
+                {field.label || 'Заголовок'}
+              </h3>
             </div>
           );
         }
 
         if (field.type === 'group') {
-          const groupFields = [...fields].filter((f) => f.groupId === field.uid).sort((a, b) => a.order - b.order);
+          const groupFields = [...fields]
+            .filter((f) => f.groupId === field.uid)
+            .sort((a, b) => a.order - b.order);
           return (
-            <div key={field.uid} className="col-span-3 border border-gray-200 rounded-xl p-4">
-              {field.label && <p className="text-sm font-medium text-gray-600 mb-3">{field.label}</p>}
+            <div
+              key={field.uid}
+              className="col-span-3 border border-gray-200 rounded-xl p-4"
+            >
+              {field.label && (
+                <p className="text-sm font-medium text-gray-600 mb-3">
+                  {field.label}
+                </p>
+              )}
               <div className="grid grid-cols-3 gap-3">
                 {groupFields.map((gf) => {
                   const value = values[gf.uid];
-                  const onChange = (v: any) => setValues((p: any) => ({ ...p, [gf.uid]: v }));
+                  const onChange = (v: any) =>
+                    setValues((p: any) => ({ ...p, [gf.uid]: v }));
                   return (
                     <div key={gf.uid} className={getColClass(gf.cols ?? 3)}>
-                      <Field label={gf.type === 'checkbox' ? '' : gf.label || 'Поле'} required={gf.required}>
-                        {renderFieldContent(gf, value, onChange, setValues, dbOptions)}
+                      <Field
+                        label={gf.type === 'checkbox' ? '' : gf.label || 'Поле'}
+                        required={gf.required}
+                      >
+                        {renderFieldContent(
+                          gf,
+                          value,
+                          onChange,
+                          setValues,
+                          dbOptions,
+                        )}
                       </Field>
                     </div>
                   );
@@ -273,31 +367,61 @@ const FormPreview = ({ fields }: { fields: Field[] }) => {
             <div key={field.uid} className="col-span-3">
               <PersonSection
                 title={field.label}
-                data={values[field.uid] ?? { lastName: '', firstName: '', middleName: '', address: '', phone: '', workplace: '', position: '' }}
-                onChange={(key, val) => setValues((p: any) => ({ ...p, [field.uid]: { ...p[field.uid], [key]: val } }))}
+                data={
+                  values[field.uid] ?? {
+                    lastName: '',
+                    firstName: '',
+                    middleName: '',
+                    address: '',
+                    phone: '',
+                    workplace: '',
+                    position: '',
+                  }
+                }
+                onChange={(key, val) =>
+                  setValues((p: any) => ({
+                    ...p,
+                    [field.uid]: { ...p[field.uid], [key]: val },
+                  }))
+                }
               />
             </div>
           );
         }
 
+        // documents занимает всю ширину
         if (field.type === 'documents') {
           const value = values[field.uid];
-          const onChange = (v: any) => setValues((p: any) => ({ ...p, [field.uid]: v }));
+          const onChange = (v: any) =>
+            setValues((p: any) => ({ ...p, [field.uid]: v }));
           return (
             <div key={field.uid} className="col-span-3">
-              <Field label={field.label || 'Документы'} required={field.required}>
-                {renderFieldContent(field, value, onChange, setValues, dbOptions)}
+              <Field
+                label={field.label || 'Документы'}
+                required={field.required}
+              >
+                {renderFieldContent(
+                  field,
+                  value,
+                  onChange,
+                  setValues,
+                  dbOptions,
+                )}
               </Field>
             </div>
           );
         }
 
         const value = values[field.uid];
-        const onChange = (v: any) => setValues((p: any) => ({ ...p, [field.uid]: v }));
+        const onChange = (v: any) =>
+          setValues((p: any) => ({ ...p, [field.uid]: v }));
 
         return (
           <div key={field.uid} className={getColClass(field.cols ?? 3)}>
-            <Field label={field.type === 'checkbox' ? '' : field.label || 'Поле'} required={field.required}>
+            <Field
+              label={field.type === 'checkbox' ? '' : field.label || 'Поле'}
+              required={field.required}
+            >
               {renderFieldContent(field, value, onChange, setValues, dbOptions)}
             </Field>
           </div>
@@ -306,6 +430,8 @@ const FormPreview = ({ fields }: { fields: Field[] }) => {
     </div>
   );
 };
+
+// ─── FieldCard ───────────────────────────────────────────────────────────────
 
 const FieldCard = ({
   field,
@@ -321,7 +447,9 @@ const FieldCard = ({
   fields: Field[];
 }) => {
   const groupFields = field.isGroup
-    ? fields.filter((f) => f.groupId === field.uid).sort((a, b) => a.order - b.order)
+    ? fields
+        .filter((f) => f.groupId === field.uid)
+        .sort((a, b) => a.order - b.order)
     : [];
 
   const isDbType = ['specialty', 'benefit', 'documents'].includes(field.type);
@@ -347,10 +475,15 @@ const FieldCard = ({
             {FIELD_TYPES.find((ft) => ft.type === field.type)?.label}
           </span>
           {isDbType && (
-            <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">из БД</span>
+            <span className="text-xs text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+              из БД
+            </span>
           )}
         </div>
-        <button onClick={() => removeField(field.uid)} className="p-1 text-red-400 hover:text-red-600">
+        <button
+          onClick={() => removeField(field.uid)}
+          className="p-1 text-red-400 hover:text-red-600"
+        >
           <Trash2 size={15} />
         </button>
       </div>
@@ -358,24 +491,30 @@ const FieldCard = ({
       <div className="flex flex-col gap-3">
         <input
           placeholder={
-            field.type === 'heading' ? 'Текст заголовка'
-            : field.type === 'group' ? 'Название группы (необязательно)'
-            : 'Название поля'
+            field.type === 'heading'
+              ? 'Текст заголовка'
+              : field.type === 'group'
+                ? 'Название группы (необязательно)'
+                : 'Название поля'
           }
           value={field.label}
           onChange={(e) => updateField(field.uid, { label: e.target.value })}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
         />
 
+        {/* Плейсхолдер */}
         {['text', 'textarea', 'phone'].includes(field.type) && (
           <input
             placeholder="Плейсхолдер"
             value={field.placeholder}
-            onChange={(e) => updateField(field.uid, { placeholder: e.target.value })}
+            onChange={(e) =>
+              updateField(field.uid, { placeholder: e.target.value })
+            }
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
         )}
 
+        {/* Варианты — ручные */}
         {['radio', 'select', 'checkbox'].includes(field.type) && (
           <OptionsEditor
             options={field.options}
@@ -383,14 +522,19 @@ const FieldCard = ({
           />
         )}
 
+        {/* Информация о DB-полях */}
         {isDbType && (
           <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
-            {field.type === 'specialty' && 'Варианты подтягиваются из таблицы специальностей'}
-            {field.type === 'benefit' && 'Варианты подтягиваются из таблицы льгот'}
-            {field.type === 'documents' && 'Чекбоксы подтягиваются из таблицы документов'}
+            {field.type === 'specialty' &&
+              'Варианты подтягиваются из таблицы специальностей'}
+            {field.type === 'benefit' &&
+              'Варианты подтягиваются из таблицы льгот'}
+            {field.type === 'documents' &&
+              'Чекбоксы подтягиваются из таблицы документов'}
           </p>
         )}
 
+        {/* Направление — radio, checkbox, documents */}
         {['radio', 'checkbox', 'documents'].includes(field.type) && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">Направление:</span>
@@ -409,17 +553,23 @@ const FieldCard = ({
           </div>
         )}
 
+        {/* Группа */}
         {field.type === 'group' && (
           <div className="border border-gray-100 rounded-lg p-3 bg-gray-50">
             <p className="text-xs text-gray-500 mb-2">Поля внутри группы:</p>
             <div className="flex flex-col gap-2 mb-3">
               {groupFields.map((gf) => (
-                <div key={gf.uid} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-200">
+                <div
+                  key={gf.uid}
+                  className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-gray-200"
+                >
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
                       {FIELD_TYPES.find((ft) => ft.type === gf.type)?.label}
                     </span>
-                    <span className="text-xs text-gray-500">{gf.label || 'Без названия'}</span>
+                    <span className="text-xs text-gray-500">
+                      {gf.label || 'Без названия'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     {COL_OPTIONS.map((opt) => (
@@ -431,7 +581,10 @@ const FieldCard = ({
                         {opt.label}
                       </button>
                     ))}
-                    <button onClick={() => removeField(gf.uid)} className="ml-1 text-red-400 hover:text-red-600">
+                    <button
+                      onClick={() => removeField(gf.uid)}
+                      className="ml-1 text-red-400 hover:text-red-600"
+                    >
                       <X size={13} />
                     </button>
                   </div>
@@ -439,7 +592,9 @@ const FieldCard = ({
               ))}
             </div>
             <div className="flex flex-wrap gap-1">
-              {FIELD_TYPES.filter((ft) => !NO_GROUP_TYPES.includes(ft.type)).map((ft) => (
+              {FIELD_TYPES.filter(
+                (ft) => !NO_GROUP_TYPES.includes(ft.type),
+              ).map((ft) => (
                 <button
                   key={ft.type}
                   onClick={() => addFieldToGroup(field.uid, ft.type)}
@@ -452,13 +607,84 @@ const FieldCard = ({
           </div>
         )}
 
+        {/* Для person — редактор полей */}
+        {field.type === 'person' && (
+          <div className="border border-gray-100 rounded-lg p-3 bg-gray-50">
+            <p className="text-xs text-gray-500 mb-2">Поля блока персоны:</p>
+            <div className="flex flex-col gap-1.5">
+              {PERSON_FIELDS.map((pf) => {
+                const active = (
+                  field.options ?? DEFAULT_PERSON_FIELDS
+                ).includes(pf.key);
+                return (
+                  <label
+                    key={pf.key}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={(e) => {
+                        const current =
+                          field.options?.length > 0
+                            ? field.options
+                            : [...DEFAULT_PERSON_FIELDS];
+                        const updated = e.target.checked
+                          ? [...current, pf.key]
+                          : current.filter((k) => k !== pf.key);
+                        updateField(field.uid, { options: updated });
+                      }}
+                      className="accent-blue-500"
+                    />
+                    <span className="text-xs text-gray-700">{pf.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Для person — чекбокс "Это абитуриент" */}
+        {field.type === 'person' && (
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={field.isApplicant ?? false}
+              onChange={(e) => {
+                // Снимаем флаг у всех других person-полей
+                if (e.target.checked) {
+                  updateField(field.uid, { isApplicant: true });
+                  // Сбрасываем у остальных
+                  fields.forEach((f) => {
+                    if (f.type === 'person' && f.uid !== field.uid) {
+                      updateField(f.uid, { isApplicant: false });
+                    }
+                  });
+                } else {
+                  updateField(field.uid, { isApplicant: false });
+                }
+              }}
+              className="accent-blue-500"
+            />
+            <span className="text-gray-700">
+              Это абитуриент{' '}
+              <span className="text-xs text-gray-400">
+                (ФИО попадёт в таблицу)
+              </span>
+            </span>
+          </label>
+        )}
+
+        {/* Обязательное + ширина */}
         {!['heading', 'group', 'person', 'documents'].includes(field.type) && (
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
               <input
                 type="checkbox"
                 checked={field.required}
-                onChange={(e) => updateField(field.uid, { required: e.target.checked })}
+                onChange={(e) =>
+                  updateField(field.uid, { required: e.target.checked })
+                }
                 className="accent-blue-500"
               />
               Обязательное поле
@@ -482,7 +708,15 @@ const FieldCard = ({
   );
 };
 
-export const FormBuilder = ({ form, onBack }: { form: any; onBack: () => void }) => {
+// ─── FormBuilder ─────────────────────────────────────────────────────────────
+
+export const FormBuilder = ({
+  form,
+  onBack,
+}: {
+  form: any;
+  onBack: () => void;
+}) => {
   const [name, setName] = useState(form.name);
   const [fields, setFields] = useState<Field[]>(
     (form.fields ?? []).map((f: any) => ({
@@ -492,6 +726,7 @@ export const FormBuilder = ({ form, onBack }: { form: any; onBack: () => void })
       isGroup: f.isGroup ?? false,
       groupId: f.groupId ?? null,
       direction: f.direction ?? 'row',
+      isApplicant: f.isApplicant ?? false,
     })),
   );
   const [saving, setSaving] = useState(false);
@@ -500,29 +735,47 @@ export const FormBuilder = ({ form, onBack }: { form: any; onBack: () => void })
   const dragOverIndex = useRef<number | null>(null);
 
   const token = localStorage.getItem('access_token');
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
 
-  const topLevelFields = fields.filter((f) => !f.groupId).sort((a, b) => a.order - b.order);
+  const topLevelFields = fields
+    .filter((f) => !f.groupId)
+    .sort((a, b) => a.order - b.order);
 
   const addField = (type: FieldType) => {
-    setFields((prev) => [...prev, emptyField(type, prev.filter((f) => !f.groupId).length)]);
+    setFields((prev) => [
+      ...prev,
+      emptyField(type, prev.filter((f) => !f.groupId).length),
+    ]);
   };
 
   const addFieldToGroup = (groupUid: string, type: FieldType) => {
     const groupFields = fields.filter((f) => f.groupId === groupUid);
-    setFields((prev) => [...prev, emptyField(type, groupFields.length, groupUid)]);
+    setFields((prev) => [
+      ...prev,
+      emptyField(type, groupFields.length, groupUid),
+    ]);
   };
 
   const updateField = (uid: string, data: Partial<Field>) => {
-    setFields((prev) => prev.map((f) => (f.uid === uid ? { ...f, ...data } : f)));
+    setFields((prev) =>
+      prev.map((f) => (f.uid === uid ? { ...f, ...data } : f)),
+    );
   };
 
   const removeField = (uid: string) => {
     setFields((prev) => prev.filter((f) => f.uid !== uid && f.groupId !== uid));
   };
 
-  const handleDragStart = (index: number) => { dragIndex.current = index; };
-  const handleDragOver = (e: React.DragEvent, index: number) => { e.preventDefault(); dragOverIndex.current = index; };
+  const handleDragStart = (index: number) => {
+    dragIndex.current = index;
+  };
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    dragOverIndex.current = index;
+  };
   const handleDrop = () => {
     if (dragIndex.current === null || dragOverIndex.current === null) return;
     const newTopLevel = [...topLevelFields];
@@ -552,7 +805,10 @@ export const FormBuilder = ({ form, onBack }: { form: any; onBack: () => void })
     <div>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <button onClick={onBack} className="text-gray-400 hover:text-gray-600 transition">
+          <button
+            onClick={onBack}
+            className="text-gray-400 hover:text-gray-600 transition"
+          >
             <X size={20} />
           </button>
           <input
@@ -580,8 +836,11 @@ export const FormBuilder = ({ form, onBack }: { form: any; onBack: () => void })
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Панель добавления */}
           <div className="bg-white rounded-xl shadow-sm p-5 h-fit">
-            <p className="text-sm font-medium text-gray-500 mb-3">Добавить элемент</p>
+            <p className="text-sm font-medium text-gray-500 mb-3">
+              Добавить элемент
+            </p>
             <div className="flex flex-col gap-1">
               {regularTypes.map((ft) => (
                 <button

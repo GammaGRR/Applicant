@@ -49,6 +49,9 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
     applicant.formData ?? {},
   );
   const [saving, setSaving] = useState(false);
+  const [editCaseNumber, setEditCaseNumber] = useState(
+    applicant.caseNumber ?? '',
+  );
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +109,7 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
 
   const openModal = (mode: ModalMode) => {
     setValues(applicant.formData ?? {});
+    setEditCaseNumber(applicant.caseNumber ?? '');
     setError(null);
     setModalMode(mode);
     handleClose();
@@ -158,7 +162,12 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ formData: values, ...quick, documents }),
+          body: JSON.stringify({
+            formData: values,
+            caseNumber: editCaseNumber,
+            ...quick,
+            documents,
+          }),
         },
       );
       if (!res.ok) throw new Error();
@@ -171,6 +180,7 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
     }
   };
 
+  // Вызывается только из диалога подтверждения — без confirm()
   const handleDelete = async () => {
     setDeleting(true);
     try {
@@ -192,8 +202,8 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
 
   const modalTitle =
     modalMode === 'view'
-      ? `Анкета: ${applicant.caseNumber}`
-      : `Редактирование: ${applicant.caseNumber}`;
+      ? `Анкета: ${applicant.fullName || applicant.caseNumber}`
+      : `Редактирование: ${applicant.fullName || applicant.caseNumber}`;
 
   return (
     <>
@@ -206,6 +216,8 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
       >
         <EllipsisVertical size={24} />
       </button>
+
+      {/* Дропдаун */}
       {open &&
         createPortal(
           <div
@@ -254,6 +266,8 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
           </div>,
           document.body,
         )}
+
+      {/* Модальное окно просмотра / редактирования */}
       {modalMode &&
         createPortal(
           <div
@@ -304,12 +318,29 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
                 </div>
               </div>
               <div className="p-6">
-                <p className="text-xs text-gray-400 mb-4">
-                  № дела:{' '}
-                  <span className="font-medium text-gray-600">
-                    {applicant.caseNumber}
-                  </span>
-                </p>
+                <div className="mb-4">
+                  {modalMode === 'edit' ? (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-gray-400 whitespace-nowrap">
+                        № дела:
+                      </label>
+                      <input
+                        type="text"
+                        value={editCaseNumber}
+                        onChange={(e) => setEditCaseNumber(e.target.value)}
+                        placeholder="Например: 1/9 ИС"
+                        className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 flex-1"
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">
+                      № дела:{' '}
+                      <span className="font-medium text-gray-600">
+                        {applicant.caseNumber}
+                      </span>
+                    </p>
+                  )}
+                </div>
                 {activeForm ? (
                   <ApplicantFormContent
                     form={activeForm}

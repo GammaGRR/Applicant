@@ -36,6 +36,7 @@ export interface FormField {
   isGroup: boolean;
   groupId: string | null;
   direction?: 'row' | 'col';
+  isApplicant?: boolean;
 }
 
 export interface ActiveForm {
@@ -50,6 +51,7 @@ const getColClass = (cols: number) => {
   return 'col-span-3';
 };
 
+// Утилита: извлечь быстрые поля из formData + fields формы
 export const extractQuickFields = (
   fields: FormField[],
   values: Record<string, any>,
@@ -67,11 +69,12 @@ export const extractQuickFields = (
     const val = values[f.id];
     const label = (f.label ?? '').toLowerCase();
 
-    if (f.type === 'person' && typeof val === 'object' && val !== null) {
-      const parts = [val.lastName, val.firstName, val.middleName].filter(
-        Boolean,
-      );
+    // По типу поля — точно
+    if (f.type === 'person' && f.isApplicant && typeof val === 'object' && val !== null) {
+      const parts = [val.lastName, val.firstName, val.middleName].filter(Boolean);
       if (parts.length > 0) fullName = parts.join(' ');
+    } else if (f.type === 'person' && !f.isApplicant) {
+      // Это не абитуриент (опекун и т.д.) — пропускаем для fullName
     }
     if (f.type === 'specialty') {
       profession = Array.isArray(val) ? val.join(', ') : (val ?? '');
@@ -80,36 +83,29 @@ export const extractQuickFields = (
       benefit = Array.isArray(val) ? val.join(', ') : (val ?? '');
     }
     if (f.type === 'documents') {
+      // Все документы из БД — отмеченные = done, остальные = missing
+      // val — массив отмеченных названий
       if (Array.isArray(val)) {
         checkedDocuments = val;
       }
     }
-    if (label.includes('класс') || label.includes('образование'))
-      classes = val ?? '';
-    if (label.includes('финансиров') || label.includes('бюджет'))
-      finance = val ?? '';
-    if (label.includes('балл') || label.includes('gpa'))
-      point = parseFloat(val) || undefined;
-    if (label.includes('примечан') || label.includes('заметк'))
-      note = val ?? '';
-    if (f.type !== 'specialty' && label.includes('специальност'))
-      profession = val ?? '';
+
+    // По label — для обычных полей
+    if (label.includes('класс') || label.includes('образование')) classes = val ?? '';
+    if (label.includes('финансиров') || label.includes('бюджет')) finance = val ?? '';
+    if (label.includes('балл') || label.includes('gpa')) point = parseFloat(val) || undefined;
+    if (label.includes('примечан') || label.includes('заметк')) note = val ?? '';
+    // specialty/benefit по label тоже на случай обычного select/checkbox с таким названием
+    if (f.type !== 'specialty' && (label.includes('специальност'))) profession = val ?? '';
     if (f.type !== 'benefit' && label.includes('льгот')) {
       benefit = Array.isArray(val) ? val.join(', ') : (val ?? '');
     }
   });
 
-  return {
-    fullName,
-    classes,
-    profession,
-    finance,
-    point,
-    benefit,
-    note,
-    checkedDocuments,
-  };
+  return { fullName, classes, profession, finance, point, benefit, note, checkedDocuments };
 };
+
+// ─── Переиспользуемый рендер полей формы ────────────────────────────────────
 
 interface FormContentProps {
   form: ActiveForm;
@@ -131,9 +127,7 @@ export const ApplicantFormContent = ({
   useEffect(() => {
     fetch('http://localhost:3000/specialities')
       .then((r) => r.json())
-      .then((data) =>
-        setSpecialties(data.map((s: any) => `${s.code} ${s.name}`)),
-      )
+      .then((data) => setSpecialties(data.map((s: any) => `${s.code} ${s.name}`)))
       .catch(() => {});
     fetch('http://localhost:3000/benefits')
       .then((r) => r.json())
@@ -157,13 +151,8 @@ export const ApplicantFormContent = ({
             title={field.label}
             data={
               values[field.id] ?? {
-                lastName: '',
-                firstName: '',
-                middleName: '',
-                address: '',
-                phone: '',
-                workplace: '',
-                position: '',
+                lastName: '', firstName: '', middleName: '',
+                address: '', phone: '', workplace: '', position: '',
               }
             }
             onChange={
@@ -204,10 +193,7 @@ export const ApplicantFormContent = ({
         );
       case 'phone':
         return (
-          <PhoneInput
-            value={value ?? ''}
-            onChange={readOnly ? () => {} : onChange}
-          />
+          <PhoneInput value={value ?? ''} onChange={readOnly ? () => {} : onChange} />
         );
       case 'checkbox':
         return field.options?.length > 0 ? (
@@ -266,13 +252,8 @@ export const ApplicantFormContent = ({
   const renderField = (field: FormField) => {
     if (field.type === 'heading') {
       return (
-        <div
-          key={field.id}
-          className="pt-2 pb-1 border-b border-gray-200 col-span-3"
-        >
-          <h3 className="text-base font-semibold text-gray-800">
-            {field.label}
-          </h3>
+        <div key={field.id} className="pt-2 pb-1 border-b border-gray-200 col-span-3">
+          <h3 className="text-base font-semibold text-gray-800">{field.label}</h3>
         </div>
       );
     }
@@ -282,22 +263,14 @@ export const ApplicantFormContent = ({
         .filter((f) => f.groupId === String(field.id))
         .sort((a, b) => a.order - b.order);
       return (
-        <div
-          key={field.id}
-          className="col-span-3 border border-gray-200 rounded-xl p-4"
-        >
+        <div key={field.id} className="col-span-3 border border-gray-200 rounded-xl p-4">
           {field.label && (
-            <p className="text-sm font-medium text-gray-600 mb-3">
-              {field.label}
-            </p>
+            <p className="text-sm font-medium text-gray-600 mb-3">{field.label}</p>
           )}
           <div className="grid grid-cols-3 gap-3">
             {groupFields.map((gf) => (
               <div key={gf.id} className={getColClass(gf.cols ?? 3)}>
-                <Field
-                  label={gf.type === 'checkbox' ? '' : gf.label}
-                  required={gf.required}
-                >
+                <Field label={gf.type === 'checkbox' ? '' : gf.label} required={gf.required}>
                   {renderFieldContent(gf)}
                 </Field>
               </div>
@@ -327,10 +300,7 @@ export const ApplicantFormContent = ({
 
     return (
       <div key={field.id} className={getColClass(field.cols ?? 3)}>
-        <Field
-          label={field.type === 'checkbox' ? '' : field.label}
-          required={field.required}
-        >
+        <Field label={field.type === 'checkbox' ? '' : field.label} required={field.required}>
           {renderFieldContent(field)}
         </Field>
       </div>
@@ -342,13 +312,13 @@ export const ApplicantFormContent = ({
     .sort((a, b) => a.order - b.order);
 
   return (
-    <div
-      className={`grid grid-cols-3 gap-4 ${readOnly ? 'pointer-events-none opacity-80' : ''}`}
-    >
+    <div className={`grid grid-cols-3 gap-4 ${readOnly ? 'pointer-events-none opacity-80' : ''}`}>
       {topLevelFields.map((field) => renderField(field))}
     </div>
   );
 };
+
+// ─── Кнопка «Добавить абитуриента» ──────────────────────────────────────────
 
 export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
   const [open, setOpen] = useState(false);
@@ -372,13 +342,8 @@ export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
               initial[f.id] = f.options?.length > 0 ? [] : false;
             } else if (f.type === 'person') {
               initial[f.id] = {
-                lastName: '',
-                firstName: '',
-                middleName: '',
-                address: '',
-                phone: '',
-                workplace: '',
-                position: '',
+                lastName: '', firstName: '', middleName: '',
+                address: '', phone: '', workplace: '', position: '',
               };
             } else {
               initial[f.id] = '';
@@ -407,6 +372,8 @@ export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
     try {
       const token = localStorage.getItem('access_token');
       const quick = extractQuickFields(activeForm.fields, values);
+
+      // Строим массив документов: получаем все документы из БД, помечаем статус
       let documents: { name: string; status: 'done' | 'missing' }[] = [];
       try {
         const docsRes = await fetch('http://localhost:3000/documents');
@@ -416,7 +383,7 @@ export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
           name,
           status: quick.checkedDocuments.includes(name) ? 'done' : 'missing',
         }));
-      } catch {}
+      } catch { /* если не загрузились — отправим пустой массив */ }
 
       const response = await fetch('http://localhost:3000/applicants', {
         method: 'POST',
@@ -444,9 +411,7 @@ export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
 
   useEffect(() => {
     if (!open) return;
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleClose();
-    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
   }, [open]);
@@ -468,10 +433,7 @@ export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
 
       {open &&
         createPortal(
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center"
-            onClick={handleClose}
-          >
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center" onClick={handleClose}>
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <div
               ref={modalRef}
@@ -483,11 +445,7 @@ export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
                   <FileText size={20} className="text-blue-600" />
                   {activeForm?.name ?? 'Анкета абитуриента'}
                 </h2>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="p-2 rounded-full hover:bg-gray-200"
-                >
+                <button type="button" onClick={handleClose} className="p-2 rounded-full hover:bg-gray-200">
                   <X size={20} />
                 </button>
               </div>
@@ -518,11 +476,7 @@ export const ApplicantForm = ({ onCreated }: { onCreated?: () => void }) => {
                     />
                   </>
                 )}
-                {error && (
-                  <p className="mt-4 text-sm text-red-500 text-center">
-                    {error}
-                  </p>
-                )}
+                {error && <p className="mt-4 text-sm text-red-500 text-center">{error}</p>}
                 {activeForm && (
                   <button
                     type="button"
