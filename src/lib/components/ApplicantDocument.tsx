@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 export interface DocumentItem {
   name: string;
   status: 'done' | 'missing';
+  count?: number;
 }
 
 interface Props {
@@ -136,6 +137,7 @@ export const ApplicantDocuments = ({ documents }: Props) => {
                     )}
                     <span className={`text-xs ${doc.status === 'done' ? 'text-green-600' : 'text-gray-700'}`}>
                       {doc.name}
+                      {doc.status === 'done' && doc.count && doc.count > 0 ? ` ×${doc.count}` : ''}
                     </span>
                   </div>
                 ))}

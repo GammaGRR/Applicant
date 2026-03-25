@@ -18,10 +18,24 @@ export const FilterDropdown = ({ options, selected, onChange, label }: FilterDro
   const updatePosition = () => {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (rect) {
-      setPosition({
-        top: rect.bottom + 4,
-        left: rect.left - 60,
-      });
+      const popupWidth = 220;
+      const popupHeight = 300;
+      const margin = 8;
+
+      let left = rect.left - 60;
+      let top = rect.bottom + 6;
+
+      if (left + popupWidth > window.innerWidth - margin) {
+        left = window.innerWidth - popupWidth - margin;
+      }
+      if (left < margin) left = margin;
+
+      if (top + popupHeight > window.innerHeight - margin) {
+        top = rect.top - popupHeight - 6;
+      }
+      if (top < margin) top = margin;
+
+      setPosition({ top, left });
     }
   };
 

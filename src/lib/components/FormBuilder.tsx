@@ -21,12 +21,13 @@ type FieldType =
   | 'radio'
   | 'checkbox'
   | 'select'
+  | 'gpa'
   | 'heading'
   | 'person'
   | 'group'
-  | 'specialty' // Выпадающий из таблицы specialities
-  | 'benefit' // Выпадающий из таблицы benefits
-  | 'documents'; // Чекбоксы из таблицы documents
+  | 'specialty'
+  | 'benefit'
+  | 'documents';
 
 interface Field {
   uid: string;
@@ -53,6 +54,7 @@ const FIELD_TYPES: { type: FieldType; label: string; group?: string }[] = [
   { type: 'radio', label: 'Радио кнопки' },
   { type: 'checkbox', label: 'Чекбокс' },
   { type: 'select', label: 'Выпадающий список' },
+  { type: 'gpa', label: 'Средний балл (калькулятор)' },
   { type: 'person', label: 'Информация о персоне' },
   { type: 'specialty', label: 'Специальность (из БД)', group: 'db' },
   { type: 'benefit', label: 'Льгота (из БД)', group: 'db' },
@@ -129,8 +131,6 @@ const useDbOptions = () => {
   return { specialties, benefits, documents };
 };
 
-// ─── OptionsEditor ───────────────────────────────────────────────────────────
-
 const OptionsEditor = ({
   options,
   onChange,
@@ -175,8 +175,6 @@ const OptionsEditor = ({
     </div>
   );
 };
-
-// ─── Рендер содержимого поля в превью ────────────────────────────────────────
 
 const renderFieldContent = (
   field: Field,
@@ -236,6 +234,60 @@ const renderFieldContent = (
           options={field.options}
         />
       );
+    case 'gpa': {
+      const counts =
+        typeof value === 'object' && value
+          ? value
+          : { n2: '', n3: '', n4: '', n5: '' };
+
+      const n2 = Math.max(0, parseInt(String((counts as any).n2 ?? ''), 10) || 0);
+      const n3 = Math.max(0, parseInt(String((counts as any).n3 ?? ''), 10) || 0);
+      const n4 = Math.max(0, parseInt(String((counts as any).n4 ?? ''), 10) || 0);
+      const n5 = Math.max(0, parseInt(String((counts as any).n5 ?? ''), 10) || 0);
+      const total = n2 + n3 + n4 + n5;
+      const avg = total ? (2 * n2 + 3 * n3 + 4 * n4 + 5 * n5) / total : NaN;
+
+      return (
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <input
+              inputMode="numeric"
+              placeholder="Двоек"
+              value={String((counts as any).n2 ?? '')}
+              onChange={(e) => onChange({ ...(counts as any), n2: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              inputMode="numeric"
+              placeholder="Троек"
+              value={String((counts as any).n3 ?? '')}
+              onChange={(e) => onChange({ ...(counts as any), n3: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              inputMode="numeric"
+              placeholder="Четвёрок"
+              value={String((counts as any).n4 ?? '')}
+              onChange={(e) => onChange({ ...(counts as any), n4: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              inputMode="numeric"
+              placeholder="Пятёрок"
+              value={String((counts as any).n5 ?? '')}
+              onChange={(e) => onChange({ ...(counts as any), n5: e.target.value })}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <span className="text-xs text-gray-500">Средний балл</span>
+            <span className="text-sm font-semibold text-gray-800">
+              {Number.isFinite(avg) ? avg.toFixed(2) : '—'}
+            </span>
+          </div>
+        </div>
+      );
+    }
     case 'specialty':
       return (
         <Select
@@ -389,7 +441,6 @@ const FormPreview = ({ fields }: { fields: Field[] }) => {
           );
         }
 
-        // documents занимает всю ширину
         if (field.type === 'documents') {
           const value = values[field.uid];
           const onChange = (v: any) =>
@@ -430,8 +481,6 @@ const FormPreview = ({ fields }: { fields: Field[] }) => {
     </div>
   );
 };
-
-// ─── FieldCard ───────────────────────────────────────────────────────────────
 
 const FieldCard = ({
   field,
@@ -501,8 +550,6 @@ const FieldCard = ({
           onChange={(e) => updateField(field.uid, { label: e.target.value })}
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
         />
-
-        {/* Плейсхолдер */}
         {['text', 'textarea', 'phone'].includes(field.type) && (
           <input
             placeholder="Плейсхолдер"
@@ -513,16 +560,17 @@ const FieldCard = ({
             className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
         )}
-
-        {/* Варианты — ручные */}
         {['radio', 'select', 'checkbox'].includes(field.type) && (
           <OptionsEditor
             options={field.options}
             onChange={(opts) => updateField(field.uid, { options: opts })}
           />
         )}
-
-        {/* Информация о DB-полях */}
+        {field.type === 'gpa' && (
+          <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            В анкете появятся поля для количества 2/3/4/5, средний балл будет считаться автоматически.
+          </p>
+        )}
         {isDbType && (
           <p className="text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2">
             {field.type === 'specialty' &&
@@ -533,8 +581,6 @@ const FieldCard = ({
               'Чекбоксы подтягиваются из таблицы документов'}
           </p>
         )}
-
-        {/* Направление — radio, checkbox, documents */}
         {['radio', 'checkbox', 'documents'].includes(field.type) && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400">Направление:</span>
@@ -552,8 +598,6 @@ const FieldCard = ({
             </button>
           </div>
         )}
-
-        {/* Группа */}
         {field.type === 'group' && (
           <div className="border border-gray-100 rounded-lg p-3 bg-gray-50">
             <p className="text-xs text-gray-500 mb-2">Поля внутри группы:</p>
@@ -606,8 +650,6 @@ const FieldCard = ({
             </div>
           </div>
         )}
-
-        {/* Для person — редактор полей */}
         {field.type === 'person' && (
           <div className="border border-gray-100 rounded-lg p-3 bg-gray-50">
             <p className="text-xs text-gray-500 mb-2">Поля блока персоны:</p>
@@ -643,18 +685,14 @@ const FieldCard = ({
             </div>
           </div>
         )}
-
-        {/* Для person — чекбокс "Это абитуриент" */}
         {field.type === 'person' && (
           <label className="flex items-center gap-2 text-sm cursor-pointer">
             <input
               type="checkbox"
               checked={field.isApplicant ?? false}
               onChange={(e) => {
-                // Снимаем флаг у всех других person-полей
                 if (e.target.checked) {
                   updateField(field.uid, { isApplicant: true });
-                  // Сбрасываем у остальных
                   fields.forEach((f) => {
                     if (f.type === 'person' && f.uid !== field.uid) {
                       updateField(f.uid, { isApplicant: false });
@@ -674,8 +712,6 @@ const FieldCard = ({
             </span>
           </label>
         )}
-
-        {/* Обязательное + ширина */}
         {!['heading', 'group', 'person', 'documents'].includes(field.type) && (
           <div className="flex items-center justify-between">
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
@@ -708,8 +744,6 @@ const FieldCard = ({
   );
 };
 
-// ─── FormBuilder ─────────────────────────────────────────────────────────────
-
 export const FormBuilder = ({
   form,
   onBack,
@@ -733,24 +767,20 @@ export const FormBuilder = ({
   const [preview, setPreview] = useState(false);
   const dragIndex = useRef<number | null>(null);
   const dragOverIndex = useRef<number | null>(null);
-
   const token = localStorage.getItem('access_token');
   const headers = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
   };
-
   const topLevelFields = fields
     .filter((f) => !f.groupId)
     .sort((a, b) => a.order - b.order);
-
   const addField = (type: FieldType) => {
     setFields((prev) => [
       ...prev,
       emptyField(type, prev.filter((f) => !f.groupId).length),
     ]);
   };
-
   const addFieldToGroup = (groupUid: string, type: FieldType) => {
     const groupFields = fields.filter((f) => f.groupId === groupUid);
     setFields((prev) => [
@@ -758,17 +788,14 @@ export const FormBuilder = ({
       emptyField(type, groupFields.length, groupUid),
     ]);
   };
-
   const updateField = (uid: string, data: Partial<Field>) => {
     setFields((prev) =>
       prev.map((f) => (f.uid === uid ? { ...f, ...data } : f)),
     );
   };
-
   const removeField = (uid: string) => {
     setFields((prev) => prev.filter((f) => f.uid !== uid && f.groupId !== uid));
   };
-
   const handleDragStart = (index: number) => {
     dragIndex.current = index;
   };
@@ -825,7 +852,6 @@ export const FormBuilder = ({
           {preview ? 'Редактор' : 'Предпросмотр'}
         </button>
       </div>
-
       {preview ? (
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-lg font-semibold mb-6">{name}</h2>
@@ -836,7 +862,6 @@ export const FormBuilder = ({
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Панель добавления */}
           <div className="bg-white rounded-xl shadow-sm p-5 h-fit">
             <p className="text-sm font-medium text-gray-500 mb-3">
               Добавить элемент
@@ -853,10 +878,8 @@ export const FormBuilder = ({
                   + {ft.label}
                 </button>
               ))}
-
               <div className="border-t border-gray-100 my-2" />
               <p className="text-xs text-gray-400 px-3 mb-1">Из базы данных</p>
-
               {dbTypes.map((ft) => (
                 <button
                   key={ft.type}
@@ -868,15 +891,12 @@ export const FormBuilder = ({
               ))}
             </div>
           </div>
-
-          {/* Поля */}
           <div className="lg:col-span-2 flex flex-col gap-4">
             {topLevelFields.length === 0 && (
               <div className="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400 text-sm">
                 Добавьте элементы из панели слева
               </div>
             )}
-
             {topLevelFields.map((field, index) => (
               <div
                 key={field.uid}
@@ -895,7 +915,6 @@ export const FormBuilder = ({
                 />
               </div>
             ))}
-
             {fields.filter((f) => !f.groupId).length > 0 && (
               <button
                 onClick={handleSave}

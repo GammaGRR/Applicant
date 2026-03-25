@@ -77,7 +77,26 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
 
   const updatePosition = () => {
     const rect = buttonRef.current?.getBoundingClientRect();
-    if (rect) setPosition({ top: rect.bottom + 5, left: rect.left - 150 });
+    if (!rect) return;
+
+    const popupWidth = 160;
+    const popupHeight = 132;
+    const margin = 8;
+
+    let left = rect.left - 150;
+    let top = rect.bottom + 5;
+
+    if (left + popupWidth > window.innerWidth - margin) {
+      left = window.innerWidth - popupWidth - margin;
+    }
+    if (left < margin) left = margin;
+
+    if (top + popupHeight > window.innerHeight - margin) {
+      top = rect.top - popupHeight - 5;
+    }
+    if (top < margin) top = margin;
+
+    setPosition({ top, left });
   };
 
   useEffect(() => {
@@ -143,15 +162,20 @@ export const ModalButton = ({ applicant, onDeleted, onUpdated }: Props) => {
     setError(null);
     try {
       const quick = extractQuickFields(activeForm.fields, values);
-      let documents: { name: string; status: 'done' | 'missing' }[] = [];
+      let documents: { name: string; status: 'done' | 'missing'; count?: number }[] = [];
       try {
         const docsRes = await fetch('http://localhost:3000/documents');
         const allDocs = await docsRes.json();
         const allDocNames: string[] = allDocs.map((d: any) => d.name);
-        documents = allDocNames.map((name) => ({
-          name,
-          status: quick.checkedDocuments.includes(name) ? 'done' : 'missing',
-        }));
+        documents = allDocNames.map((name) => {
+          const done = quick.checkedDocuments.includes(name);
+          const count = done ? (quick as any).documentCounts?.[name] : undefined;
+          return {
+            name,
+            status: done ? 'done' : 'missing',
+            ...(count && count > 0 ? { count } : {}),
+          };
+        });
       } catch {}
 
       const res = await fetch(
